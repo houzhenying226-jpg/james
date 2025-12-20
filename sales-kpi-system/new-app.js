@@ -21,10 +21,15 @@ document.addEventListener('DOMContentLoaded', function() {
  * 检查首次运行
  */
 function checkFirstRun() {
-    if (!DataStorage.hasData()) {
+    console.log('checkFirstRun: 检查是否有数据...');
+    const hasData = DataStorage.hasData();
+    console.log('checkFirstRun: hasData =', hasData);
+
+    if (!hasData) {
         setTimeout(() => {
             if (confirm('检测到系统首次运行，是否加载测试数据？\n\n测试数据包含：\n- 3名销售员：张三、李四、王五\n- 8个项目\n- 多版本任务示例\n- 2024年11月快照')) {
-                loadTestData();
+                generateTestData();
+                refreshAll();
             }
         }, 500);
     }
@@ -110,8 +115,11 @@ function refreshAll() {
  * 刷新项目列表
  */
 function refreshProjectsList() {
+    console.log('refreshProjectsList: 开始刷新项目列表');
     const container = document.getElementById('projectsList');
     const projects = DataStorage.getAllProjects();
+    console.log('refreshProjectsList: 获取到项目数据:', projects);
+    console.log('refreshProjectsList: 项目数量:', Object.keys(projects).length);
     const projectList = Object.values(projects);
 
     // 更新筛选器
@@ -278,11 +286,15 @@ function submitProject(event) {
  * 进入工作台
  */
 function enterWorkbench(projectId) {
+    console.log('enterWorkbench: 项目ID =', projectId);
     currentProjectId = projectId;
     const project = DataStorage.getProject(projectId);
+    console.log('enterWorkbench: 获取到项目 =', project);
 
     if (!project) {
-        alert('项目不存在');
+        console.error('enterWorkbench: 项目不存在！ID =', projectId);
+        console.log('enterWorkbench: 当前所有项目 =', DataStorage.getAllProjects());
+        alert('项目不存在，ID: ' + projectId);
         return;
     }
 
@@ -968,7 +980,8 @@ function refreshSnapshotList() {
 /**
  * 加载测试数据
  */
-function loadTestData() {
+function loadTestDataFromSettings() {
+    console.log('loadTestDataFromSettings: 开始加载测试数据');
     if (DataStorage.hasData()) {
         if (!confirm('当前已有数据，加载测试数据将清除现有数据。确定继续？')) {
             return;
@@ -976,9 +989,10 @@ function loadTestData() {
     }
 
     generateTestData();
+    console.log('loadTestDataFromSettings: 测试数据已生成');
     closeSettingsModal();
     refreshAll();
-    alert('测试数据加载成功！');
+    alert('测试数据加载成功！\n\n请查看控制台(F12)了解详细日志。');
 }
 
 /**
