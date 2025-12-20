@@ -1183,6 +1183,11 @@ body {
     color: #e65100;
 }
 
+.validation-list li.pending {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
 .summary-content {
     display: flex;
     justify-content: center;

@@ -486,7 +486,35 @@ const TASK_RULES = {
                 severity: 'error'
             }
         ],
-        crossRefs: [],
+        crossRefs: [
+            {
+                id: 'cross_decision_chain_check',
+                label: '决策人在决策链中',
+                refTaskCode: '1.2',
+                validate: (curr, ref) => {
+                    // 检查任务1.2是否已完成
+                    if (!ref || !ref.keyPersonList) {
+                        // 1.2未完成时返回null表示待验证
+                        return null;
+                    }
+                    // 检查N决策人是否在决策链名单中
+                    const nDesc = curr.nDescription || '';
+                    if (!nDesc) return true; // 没有填写决策人描述，跳过检查
+
+                    const keyPersons = ref.keyPersonList.toLowerCase();
+                    // 简单检查：决策人描述中的关键词是否出现在决策链中
+                    const words = nDesc.split(/[,，、\s()（）]+/).filter(w => w.length >= 2);
+                    const found = words.some(word =>
+                        keyPersons.includes(word.toLowerCase())
+                    );
+                    return found;
+                },
+                passMessage: '✓ 决策人在决策链名单中',
+                failMessage: '决策人不在1.2决策链名单中，建议核实',
+                pendingMessage: '⚠️ 决策链(1.2)未填写，完成后可验证关联性',
+                severity: 'warning'
+            }
+        ],
         aiRules: [
             {
                 id: 'ai_man_quality',

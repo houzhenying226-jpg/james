@@ -265,11 +265,18 @@ const ValidationEngine = {
 
         rules.forEach(rule => {
             const passed = rule.validate(fields);
+            // 支持两种消息格式：getMessage函数 或 passMessage/failMessage静态字符串
+            let message;
+            if (typeof rule.getMessage === 'function') {
+                message = rule.getMessage(fields, passed);
+            } else {
+                message = passed ? rule.passMessage : rule.failMessage;
+            }
             checks.push({
                 id: rule.id,
                 label: rule.label,
                 passed,
-                message: passed ? rule.passMessage : rule.failMessage,
+                message: message || (passed ? '✓ 验证通过' : '✗ 验证未通过'),
                 severity: rule.severity || 'error' // error | warning
             });
             if (!passed && rule.severity !== 'warning') {
@@ -293,13 +300,16 @@ const ValidationEngine = {
             const refTaskId = `${projectId}-${ref.refTaskCode}`;
             const refTask = DataStorage.getTask(refTaskId);
 
+            // 关联任务未完成
             if (!refTask || refTask.versions.length === 0) {
                 checks.push({
                     id: ref.id,
                     label: ref.label,
-                    passed: false,
-                    message: `前置任务 ${ref.refTaskCode} 尚未完成`,
-                    severity: 'warning'
+                    passed: null, // null表示待验证状态
+                    message: ref.pendingMessage || `⚠️ 关联任务 ${ref.refTaskCode} 未完成，暂无法验证`,
+                    refTaskCode: ref.refTaskCode,
+                    severity: 'info',
+                    pending: true
                 });
                 return;
             }
@@ -309,18 +319,32 @@ const ValidationEngine = {
             const refFields = bestVersion?.fields || {};
 
             // 执行关联验证
-            const passed = ref.validate(fields, refFields);
-            checks.push({
-                id: ref.id,
-                label: ref.label,
-                passed,
-                message: passed ? ref.passMessage : ref.failMessage,
-                refTaskCode: ref.refTaskCode,
-                severity: ref.severity || 'warning'
-            });
+            const validationResult = ref.validate(fields, refFields);
 
-            if (!passed && ref.severity === 'error') {
-                allPassed = false;
+            // 处理三种返回值：true(通过), false(失败), null(待验证)
+            if (validationResult === null) {
+                checks.push({
+                    id: ref.id,
+                    label: ref.label,
+                    passed: null,
+                    message: ref.pendingMessage || `⚠️ 关联数据不完整，暂无法验证`,
+                    refTaskCode: ref.refTaskCode,
+                    severity: 'info',
+                    pending: true
+                });
+            } else {
+                checks.push({
+                    id: ref.id,
+                    label: ref.label,
+                    passed: validationResult,
+                    message: validationResult ? ref.passMessage : ref.failMessage,
+                    refTaskCode: ref.refTaskCode,
+                    severity: ref.severity || 'warning'
+                });
+
+                if (!validationResult && ref.severity === 'error') {
+                    allPassed = false;
+                }
             }
         });
 

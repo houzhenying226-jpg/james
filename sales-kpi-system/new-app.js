@@ -660,14 +660,24 @@ function renderCrossRefValidation(result) {
     if (!container) return;
 
     if (result.checks.length === 0) {
-        container.innerHTML = '<p class="empty-hint">无关联任务需要验证</p>';
+        container.innerHTML = '<p class="empty-hint">此任务无关联验证项</p>';
         return;
     }
 
     let html = '<ul class="validation-list">';
     result.checks.forEach(check => {
-        const cls = check.passed ? 'pass' : 'warning';
-        const icon = check.passed ? '✅' : '⚠️';
+        // 处理三种状态：通过(true)、失败(false)、待验证(null/pending)
+        let cls, icon;
+        if (check.passed === null || check.pending) {
+            cls = 'pending';
+            icon = '⏳';
+        } else if (check.passed) {
+            cls = 'pass';
+            icon = '✅';
+        } else {
+            cls = 'warning';
+            icon = '⚠️';
+        }
         html += `<li class="${cls}">${icon} ${check.label}：${check.message}</li>`;
     });
     html += '</ul>';
