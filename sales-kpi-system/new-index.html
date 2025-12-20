@@ -102,22 +102,35 @@
                 <div class="assessment-header">
                     <h2>月度考核</h2>
                     <div class="month-selector">
-                        <button class="month-nav" onclick="prevMonth()">◀</button>
-                        <span class="month-display" id="currentMonthDisplay">2024年12月</span>
-                        <button class="month-nav" onclick="nextMonth()">▶</button>
+                        <select id="monthSelect" class="month-dropdown" onchange="onMonthChange()"></select>
                     </div>
                 </div>
 
-                <div class="snapshot-status" id="snapshotStatus">
-                    <span class="status-icon">⏳</span>
-                    <span class="status-text">未生成快照</span>
-                    <button class="btn btn-snapshot" onclick="generateSnapshot()">
-                        📸 生成快照
+                <div class="snapshot-panel">
+                    <div class="snapshot-status" id="snapshotStatus">
+                        <span class="status-icon">⏳</span>
+                        <span class="status-text">未生成快照</span>
+                    </div>
+                    <button class="btn btn-primary" id="generateSnapshotBtn" onclick="generateSnapshot()">
+                        📸 生成本月快照
                     </button>
                 </div>
 
                 <div id="rankingContent" class="ranking-content">
                     <p class="empty-hint">加载中...</p>
+                </div>
+
+                <!-- 项目明细弹窗 -->
+                <div id="projectDetailModal" class="modal-overlay">
+                    <div class="modal-content modal-large">
+                        <div class="modal-header">
+                            <h2 id="projectDetailTitle">项目明细</h2>
+                            <button class="modal-close" onclick="closeProjectDetailModal()">×</button>
+                        </div>
+                        <div class="modal-body" id="projectDetailBody">
+                            <!-- 动态生成项目明细 -->
+                        </div>
+                    </div>
                 </div>
 
                 <div class="assessment-actions">

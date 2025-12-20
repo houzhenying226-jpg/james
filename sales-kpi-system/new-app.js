@@ -106,7 +106,7 @@ function initTaskFilters() {
  */
 function refreshAll() {
     refreshProjectsList();
-    updateMonthDisplay();
+    initMonthSelector();
 }
 
 // ==================== 项目视图 ====================
@@ -799,25 +799,63 @@ function closeHistoryModal() {
 
 // ==================== 考核视图 ====================
 
+// 当前展开的销售员
+let expandedSalesperson = null;
+// 当前排名数据缓存
+let currentRankingData = null;
+
 /**
  * 刷新考核视图
  */
 function refreshAssessment() {
-    updateMonthDisplay();
+    initMonthSelector();
+    updateSnapshotStatus();
     refreshRanking();
 }
 
 /**
- * 更新月份显示
+ * 初始化月份选择器
  */
-function updateMonthDisplay() {
-    const month = DataStorage.getSelectedMonth();
-    const [year, m] = month.split('-');
-    document.getElementById('currentMonthDisplay').textContent = `${year}年${parseInt(m)}月`;
+function initMonthSelector() {
+    const select = document.getElementById('monthSelect');
+    const currentMonth = DataStorage.getSelectedMonth();
 
-    // 更新快照状态
+    // 生成最近12个月的选项
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const value = `${year}-${month}`;
+        const label = `${year}年${d.getMonth() + 1}月`;
+        months.push({ value, label });
+    }
+
+    select.innerHTML = months.map(m =>
+        `<option value="${m.value}" ${m.value === currentMonth ? 'selected' : ''}>${m.label}</option>`
+    ).join('');
+}
+
+/**
+ * 月份变更事件
+ */
+function onMonthChange() {
+    const select = document.getElementById('monthSelect');
+    DataStorage.setSelectedMonth(select.value);
+    expandedSalesperson = null;
+    updateSnapshotStatus();
+    refreshRanking();
+}
+
+/**
+ * 更新快照状态
+ */
+function updateSnapshotStatus() {
+    const month = DataStorage.getSelectedMonth();
     const hasSnapshot = DataStorage.hasSnapshot(month);
     const statusEl = document.getElementById('snapshotStatus');
+    const btnEl = document.getElementById('generateSnapshotBtn');
 
     if (hasSnapshot) {
         const snapshot = DataStorage.getMonthSnapshot(month);
@@ -826,49 +864,19 @@ function updateMonthDisplay() {
 
         statusEl.className = 'snapshot-status locked';
         statusEl.innerHTML = `
-            <span class="status-icon">📸</span>
-            <span class="status-text">快照已生成 (${time})</span>
+            <span class="status-icon">🔒</span>
+            <span class="status-text">已锁定</span>
+            <span class="status-time">${time}</span>
         `;
+        btnEl.style.display = 'none';
     } else {
         statusEl.className = 'snapshot-status';
         statusEl.innerHTML = `
             <span class="status-icon">⏳</span>
             <span class="status-text">未生成快照</span>
-            <button class="btn btn-primary" onclick="generateSnapshot()">📸 生成快照</button>
         `;
+        btnEl.style.display = 'inline-block';
     }
-}
-
-/**
- * 上一月
- */
-function prevMonth() {
-    const current = DataStorage.getSelectedMonth();
-    const [year, month] = current.split('-').map(Number);
-    let newYear = year;
-    let newMonth = month - 1;
-    if (newMonth < 1) {
-        newMonth = 12;
-        newYear--;
-    }
-    DataStorage.setSelectedMonth(`${newYear}-${String(newMonth).padStart(2, '0')}`);
-    refreshAssessment();
-}
-
-/**
- * 下一月
- */
-function nextMonth() {
-    const current = DataStorage.getSelectedMonth();
-    const [year, month] = current.split('-').map(Number);
-    let newYear = year;
-    let newMonth = month + 1;
-    if (newMonth > 12) {
-        newMonth = 1;
-        newYear++;
-    }
-    DataStorage.setSelectedMonth(`${newYear}-${String(newMonth).padStart(2, '0')}`);
-    refreshAssessment();
 }
 
 /**
@@ -876,10 +884,10 @@ function nextMonth() {
  */
 function refreshRanking() {
     const container = document.getElementById('rankingContent');
-    const rankingData = ScoreEngine.getRankingData();
+    currentRankingData = ScoreEngine.getRankingData();
 
-    if (rankingData.ranking.length === 0) {
-        container.innerHTML = '<p class="empty-hint">暂无数据</p>';
+    if (currentRankingData.ranking.length === 0) {
+        container.innerHTML = '<p class="empty-hint">暂无数据，请先在项目视图添加项目</p>';
         return;
     }
 
@@ -887,38 +895,195 @@ function refreshRanking() {
         <table class="ranking-table">
             <thead>
                 <tr>
-                    <th>排名</th>
+                    <th style="width: 60px;">排名</th>
                     <th>姓名</th>
-                    <th>项目数</th>
-                    <th>平均分</th>
-                    <th>等级</th>
+                    <th style="width: 80px;">项目数</th>
+                    <th style="width: 100px;">平均分</th>
+                    <th style="width: 100px;">等级</th>
                 </tr>
             </thead>
             <tbody>
     `;
 
-    rankingData.ranking.forEach(person => {
+    currentRankingData.ranking.forEach(person => {
         const rankClass = person.rank <= 3 ? `rank-${person.rank}` : '';
+        const isExpanded = expandedSalesperson === person.salesperson;
+        const salesperson = person.salesperson;
+
+        // 排名行
         html += `
-            <tr>
+            <tr class="ranking-row ${isExpanded ? 'expanded' : ''}"
+                onclick="togglePersonDetail('${salesperson}')">
                 <td class="rank-cell ${rankClass}">${getRankIcon(person.rank)}</td>
-                <td class="name-cell" onclick="showPersonProjects('${person.salesperson}')">${person.salesperson}</td>
+                <td class="name-cell">${salesperson} ${isExpanded ? '▼' : '▶'}</td>
                 <td>${person.projectCount || person.totalProjects}</td>
                 <td class="score-cell">${person.avgScore}</td>
                 <td style="color: ${person.gradeColor}">${person.gradeIcon} ${person.grade}</td>
+            </tr>
+        `;
+
+        // 明细行
+        html += `
+            <tr class="project-details-row ${isExpanded ? 'visible' : ''}" id="detail-${salesperson}">
+                <td colspan="5" class="project-details-cell">
+                    ${isExpanded ? renderPersonProjects(person) : ''}
+                </td>
             </tr>
         `;
     });
 
     html += '</tbody></table>';
 
-    if (rankingData.isSnapshot) {
-        html += `<p style="text-align: center; color: #28a745; margin-top: 15px;">📸 数据来源：月度快照</p>`;
+    // 数据来源提示
+    if (currentRankingData.isSnapshot) {
+        html += `<p style="text-align: center; color: #28a745; margin-top: 15px;">
+            📸 数据来源：月度快照（数据已锁定）
+        </p>`;
     } else {
-        html += `<p style="text-align: center; color: #ffc107; margin-top: 15px;">⏳ 数据来源：实时计算（未生成快照）</p>`;
+        html += `<p style="text-align: center; color: #ffc107; margin-top: 15px;">
+            ⏳ 数据来源：实时计算（点击"生成本月快照"锁定数据）
+        </p>`;
     }
 
     container.innerHTML = html;
+}
+
+/**
+ * 切换销售员项目明细
+ */
+function togglePersonDetail(salesperson) {
+    if (expandedSalesperson === salesperson) {
+        expandedSalesperson = null;
+    } else {
+        expandedSalesperson = salesperson;
+    }
+    refreshRanking();
+}
+
+/**
+ * 渲染销售员的项目明细
+ */
+function renderPersonProjects(person) {
+    // 获取项目数据
+    let projects = [];
+
+    if (currentRankingData.isSnapshot && person.projectSnapshots) {
+        // 从快照获取
+        projects = person.projectSnapshots;
+    } else if (person.projects) {
+        // 从实时数据获取
+        projects = person.projects;
+    }
+
+    if (projects.length === 0) {
+        return '<div class="project-details-content"><p class="empty-hint">暂无项目数据</p></div>';
+    }
+
+    let html = '<div class="project-details-content">';
+
+    projects.forEach(project => {
+        const projectName = project.projectName || project.name;
+        const finalScore = project.finalScore || 0;
+        const currentStage = project.currentStage || '接触';
+        const amount = project.amount || 0;
+
+        html += `
+            <div class="project-detail-card">
+                <div class="project-detail-header">
+                    <span class="project-detail-name">${projectName}</span>
+                    <span class="project-detail-score">${finalScore}分</span>
+                </div>
+                <div class="project-detail-meta">
+                    <span>📍 阶段: ${currentStage}</span>
+                    <span>💰 金额: ${amount}万</span>
+                    <span>📊 等级: ${project.grade || '-'}</span>
+                </div>
+                <div class="task-scores-grid">
+                    ${renderTaskScoresGrid(project.taskScores)}
+                </div>
+                ${renderCoefficients(project)}
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    return html;
+}
+
+/**
+ * 渲染任务得分网格
+ */
+function renderTaskScoresGrid(taskScores) {
+    if (!taskScores) return '<p class="empty-hint">暂无任务数据</p>';
+
+    let html = '';
+    const taskCodes = Object.keys(taskScores).sort();
+
+    taskCodes.forEach(code => {
+        const task = taskScores[code];
+        const score = task.score || 0;
+        const weight = task.weight || 0;
+        const versionId = task.versionId || task.bestVersionId || '-';
+
+        let scoreClass = 'zero';
+        if (score >= weight) {
+            scoreClass = 'full';
+        } else if (score > 0) {
+            scoreClass = 'partial';
+        }
+
+        html += `
+            <div class="task-score-item" title="${task.taskName || ''}">
+                <div class="task-score-code">${code}</div>
+                <div class="task-score-value ${scoreClass}">${score}/${weight}</div>
+            </div>
+        `;
+    });
+
+    return html;
+}
+
+/**
+ * 渲染系数信息
+ */
+function renderCoefficients(project) {
+    if (!project.difficultyCoef && !project.stayCoef && !project.progressCoef) {
+        return '';
+    }
+
+    let html = '<div class="coefficients-row">';
+
+    if (project.difficultyCoef) {
+        html += `
+            <span class="coefficient-badge">
+                难度系数: <span class="value">${project.difficultyCoef.value || project.difficultyCoef}</span>
+            </span>
+        `;
+    }
+
+    if (project.stayCoef) {
+        const days = project.stayCoef.days || '';
+        html += `
+            <span class="coefficient-badge">
+                停留系数: <span class="value">${project.stayCoef.value || project.stayCoef}</span>
+                ${days ? `(${days}天)` : ''}
+            </span>
+        `;
+    }
+
+    if (project.progressCoef) {
+        const change = project.progressCoef.change;
+        const changeText = change > 0 ? `+${change}阶段` : (change < 0 ? `${change}阶段` : '保持');
+        html += `
+            <span class="coefficient-badge">
+                推进系数: <span class="value">${project.progressCoef.value || project.progressCoef}</span>
+                (${changeText})
+            </span>
+        `;
+    }
+
+    html += '</div>';
+    return html;
 }
 
 /**
@@ -932,7 +1097,7 @@ function getRankIcon(rank) {
 }
 
 /**
- * 显示某人的项目
+ * 显示某人的项目（跳转到项目视图）
  */
 function showPersonProjects(salesperson) {
     document.getElementById('projectFilterSalesperson').value = salesperson;
@@ -941,23 +1106,33 @@ function showPersonProjects(salesperson) {
 }
 
 /**
+ * 关闭项目明细弹窗
+ */
+function closeProjectDetailModal() {
+    document.getElementById('projectDetailModal').classList.remove('active');
+}
+
+/**
  * 生成快照
  */
 function generateSnapshot() {
     const month = DataStorage.getSelectedMonth();
+    const [year, m] = month.split('-');
+    const monthLabel = `${year}年${parseInt(m)}月`;
 
     if (DataStorage.hasSnapshot(month)) {
-        if (!confirm('该月份已有快照，确定要重新生成吗？')) {
+        if (!confirm(`${monthLabel} 已有快照数据。\n\n确定要重新生成吗？这将覆盖现有快照。`)) {
+            return;
+        }
+    } else {
+        if (!confirm(`确定要生成 ${monthLabel} 的月度快照吗？\n\n快照生成后，该月数据将被锁定。`)) {
             return;
         }
     }
 
-    if (!confirm(`确定要生成 ${month} 的月度快照吗？\n\n快照生成后将锁定该月数据。`)) {
-        return;
-    }
-
     ScoreEngine.generateMonthlySnapshot(month);
-    alert('快照生成成功！');
+    alert(`${monthLabel} 快照生成成功！\n\n该月考核数据已锁定。`);
+    expandedSalesperson = null;
     refreshAssessment();
 }
 
