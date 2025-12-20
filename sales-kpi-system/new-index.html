@@ -232,6 +232,28 @@
                         <p class="empty-hint">暂无快照</p>
                     </div>
                 </div>
+                <div class="settings-section">
+                    <h3>🤖 AI智能验证</h3>
+                    <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">
+                        启用Gemini AI进行内容质量智能验证（可选功能）
+                    </p>
+                    <div class="form-group">
+                        <label>Gemini API Key</label>
+                        <input type="password" id="geminiApiKey" placeholder="输入你的API Key" style="width: 100%;">
+                    </div>
+                    <div class="settings-buttons" style="margin-top: 10px;">
+                        <button class="btn btn-secondary" onclick="saveApiKey()">
+                            💾 保存
+                        </button>
+                        <button class="btn btn-secondary" onclick="testApiConnection()">
+                            🔗 测试连接
+                        </button>
+                        <a href="https://aistudio.google.com/apikey" target="_blank" class="btn btn-secondary">
+                            🔑 获取API Key
+                        </a>
+                    </div>
+                    <div id="apiTestResult" style="margin-top: 10px; padding: 10px; border-radius: 8px; display: none;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -241,8 +263,11 @@
 
     <!-- 脚本加载 -->
     <script src="task-config.js"></script>
+    <script src="task-rules.js"></script>
     <script src="data-storage.js"></script>
     <script src="score-engine.js"></script>
+    <script src="ai-validator.js"></script>
+    <script src="validation-engine.js"></script>
     <script src="test-data.js"></script>
     <script src="new-app.js"></script>
 </body>

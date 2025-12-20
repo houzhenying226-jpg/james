@@ -971,14 +971,6 @@ function exportToExcel() {
 // ==================== 设置 ====================
 
 /**
- * 显示设置弹窗
- */
-function showSettingsModal() {
-    refreshSnapshotList();
-    document.getElementById('settingsModal').classList.add('active');
-}
-
-/**
  * 关闭设置弹窗
  */
 function closeSettingsModal() {
@@ -1065,4 +1057,128 @@ function clearAllData() {
     DataStorage.clearAllData();
     closeSettingsModal();
     location.reload();
+}
+
+// ==================== AI配置 ====================
+
+/**
+ * 显示设置弹窗时加载API Key
+ */
+function showSettingsModal() {
+    refreshSnapshotList();
+    // 加载已保存的API Key
+    const savedKey = AIValidator.getApiKey();
+    if (savedKey) {
+        document.getElementById('geminiApiKey').value = savedKey;
+    }
+    document.getElementById('apiTestResult').style.display = 'none';
+    document.getElementById('settingsModal').classList.add('active');
+}
+
+/**
+ * 保存API Key
+ */
+function saveApiKey() {
+    const apiKey = document.getElementById('geminiApiKey').value.trim();
+    AIValidator.setApiKey(apiKey);
+
+    const resultDiv = document.getElementById('apiTestResult');
+    resultDiv.style.display = 'block';
+    resultDiv.style.background = '#e8f5e9';
+    resultDiv.style.color = '#2e7d32';
+    resultDiv.textContent = '✅ API Key 已保存';
+
+    setTimeout(() => {
+        resultDiv.style.display = 'none';
+    }, 3000);
+}
+
+/**
+ * 测试API连接
+ */
+async function testApiConnection() {
+    const apiKey = document.getElementById('geminiApiKey').value.trim();
+    if (!apiKey) {
+        alert('请先输入API Key');
+        return;
+    }
+
+    // 临时保存以便测试
+    AIValidator.setApiKey(apiKey);
+
+    const resultDiv = document.getElementById('apiTestResult');
+    resultDiv.style.display = 'block';
+    resultDiv.style.background = '#fff3e0';
+    resultDiv.style.color = '#e65100';
+    resultDiv.textContent = '🔄 正在测试连接...';
+
+    try {
+        const result = await AIValidator.testConnection();
+
+        if (result.success) {
+            resultDiv.style.background = '#e8f5e9';
+            resultDiv.style.color = '#2e7d32';
+            resultDiv.textContent = `✅ ${result.message}`;
+        } else {
+            resultDiv.style.background = '#ffebee';
+            resultDiv.style.color = '#c62828';
+            resultDiv.textContent = `❌ ${result.message}`;
+        }
+    } catch (error) {
+        resultDiv.style.background = '#ffebee';
+        resultDiv.style.color = '#c62828';
+        resultDiv.textContent = `❌ 测试失败: ${error.message}`;
+    }
+}
+
+// ==================== 高级验证集成 ====================
+
+/**
+ * 执行高级验证（集成到上传版本流程）
+ */
+async function runAdvancedValidation(taskCode, fields, projectId) {
+    const enableAI = AIValidator.isEnabled();
+
+    try {
+        const result = await ValidationEngine.validate(taskCode, fields, {
+            enableAI,
+            projectId
+        });
+
+        return result;
+    } catch (error) {
+        console.error('高级验证失败:', error);
+        return null;
+    }
+}
+
+/**
+ * 显示高级验证结果
+ */
+function showAdvancedValidationResult(result) {
+    if (!result) return;
+
+    const html = ValidationEngine.renderResult(result);
+
+    // 创建弹窗显示
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay active';
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>📋 验证报告</h2>
+                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+            </div>
+            <div class="modal-body">
+                ${html}
+                <div class="actions" style="margin-top: 20px;">
+                    <button class="btn-pass" onclick="this.closest('.modal-overlay').remove()">
+                        确认
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
 }
