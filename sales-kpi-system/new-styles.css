@@ -898,6 +898,90 @@ body {
     color: var(--primary-color);
 }
 
+/* ==================== 验证结果扩展样式 ==================== */
+
+.validation-result {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.validation-section {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.validation-list {
+    list-style: none;
+    padding: 0;
+}
+
+.validation-list li {
+    padding: 8px 12px;
+    margin: 4px 0;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.validation-list li.pass {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.validation-list li.fail {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.validation-list li.warning {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.summary-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    margin: 16px 0;
+}
+
+.recommendation {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.recommendation.pass { color: #2e7d32; }
+.recommendation.review { color: #e65100; }
+.recommendation.fail { color: #c62828; }
+
+.score {
+    font-size: 24px;
+    font-weight: bold;
+    color: #1976d2;
+}
+
+.actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+.actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-pass { background: #4caf50; color: white; }
+.btn-review { background: #ff9800; color: white; }
+.btn-reject { background: #f44336; color: white; }
+
 /* ==================== 设置 ==================== */
 
 .settings-section {
