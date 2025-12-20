@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>销售考核自动化系统 V2 - 北京北方努派服装公司</title>
+    <link rel="stylesheet" href="styles-v2.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部导航 -->
+        <header class="header">
+            <h1>销售考核自动化系统</h1>
+            <p class="subtitle">北京北方努派服装公司 · V2.0</p>
+        </header>
+
+        <!-- 月份选择器 -->
+        <div class="month-selector">
+            <button class="month-nav-btn" id="prevMonth">◀</button>
+            <div class="month-display">
+                <span class="month-label" id="currentMonthLabel">2024年12月</span>
+                <span class="snapshot-status" id="snapshotStatus"></span>
+            </div>
+            <button class="month-nav-btn" id="nextMonth">▶</button>
+            <button class="btn btn-snapshot" id="generateSnapshot">📸 生成快照</button>
+        </div>
+
+        <!-- 导航标签 -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="ranking">排行榜</button>
+            <button class="tab-btn" data-tab="projects">项目管理</button>
+            <button class="tab-btn" data-tab="detail">个人详情</button>
+            <button class="tab-btn" data-tab="settings">设置</button>
+        </nav>
+
+        <!-- 排行榜页面 -->
+        <section id="ranking" class="tab-content active">
+            <div class="card">
+                <div class="ranking-header">
+                    <h2>月度销售排行榜</h2>
+                    <button class="btn btn-primary" onclick="exportToExcel()">导出Excel</button>
+                </div>
+                <div id="rankingContent">
+                    <p class="empty-hint">加载中...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 项目管理页面 -->
+        <section id="projects" class="tab-content">
+            <div class="card">
+                <div class="projects-header">
+                    <h2>项目管理</h2>
+                    <button class="btn btn-primary" onclick="showAddProjectModal()">➕ 新建项目</button>
+                </div>
+
+                <div class="filter-bar">
+                    <label>销售员：</label>
+                    <select id="projectFilterPerson" onchange="filterProjects()">
+                        <option value="">全部</option>
+                    </select>
+                    <label>阶段：</label>
+                    <select id="projectFilterStage" onchange="filterProjects()">
+                        <option value="">全部</option>
+                        <option value="接触">接触</option>
+                        <option value="递进">递进</option>
+                        <option value="深入">深入</option>
+                        <option value="执行">执行</option>
+                        <option value="冲刺">冲刺</option>
+                        <option value="谈判">谈判</option>
+                        <option value="签约">签约</option>
+                    </select>
+                </div>
+
+                <div id="projectList">
+                    <p class="empty-hint">加载中...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 个人详情页面 -->
+        <section id="detail" class="tab-content">
+            <div class="card">
+                <h2>个人考核详情</h2>
+                <div class="person-selector">
+                    <label>选择销售员：</label>
+                    <select id="personSelect" onchange="showPersonDetail()">
+                        <option value="">-- 请选择 --</option>
+                    </select>
+                </div>
+                <div id="detailContent">
+                    <p class="empty-hint">请选择销售员查看详情</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 设置页面 -->
+        <section id="settings" class="tab-content">
+            <div class="card">
+                <h2>系统设置</h2>
+
+                <div class="settings-section">
+                    <h3>数据管理</h3>
+                    <div class="settings-buttons">
+                        <button class="btn btn-secondary" onclick="loadTestData(); location.reload();">
+                            🧪 加载测试数据
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportAllData()">
+                            📤 导出全部数据
+                        </button>
+                        <button class="btn btn-danger" onclick="confirmClearData()">
+                            🗑️ 清除所有数据
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>快照管理</h3>
+                    <div id="snapshotList">
+                        <p class="empty-hint">加载中...</p>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>关于系统</h3>
+                    <div class="about-info">
+                        <p><strong>版本：</strong>V2.0 (任务版本化 + 月度快照)</p>
+                        <p><strong>特性：</strong></p>
+                        <ul>
+                            <li>任务支持多版本，取最高分</li>
+                            <li>月度快照，历史数据锁定</li>
+                            <li>按销售员汇总排名</li>
+                            <li>完整的得分计算过程</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 项目详情弹窗 -->
+    <div id="projectModal" class="modal-overlay">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="projectModalTitle">项目详情</h2>
+                <button class="modal-close" onclick="closeProjectModal()">×</button>
+            </div>
+            <div class="modal-body" id="projectModalBody">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 任务版本上传弹窗 -->
+    <div id="versionModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="versionModalTitle">上传新版本</h2>
+                <button class="modal-close" onclick="closeVersionModal()">×</button>
+            </div>
+            <div class="modal-body" id="versionModalBody">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建项目弹窗 -->
+    <div id="addProjectModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>新建项目</h2>
+                <button class="modal-close" onclick="closeAddProjectModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="addProjectForm" onsubmit="submitNewProject(event)">
+                    <div class="form-group">
+                        <label>项目名称 *</label>
+                        <input type="text" name="projectName" required placeholder="请输入项目名称">
+                    </div>
+                    <div class="form-group">
+                        <label>销售员 *</label>
+                        <input type="text" name="salesPerson" required placeholder="请输入销售员姓名">
+                    </div>
+                    <div class="form-group">
+                        <label>项目金额（万元）*</label>
+                        <input type="number" name="amount" required placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>当前阶段 *</label>
+                        <select name="currentStage" required>
+                            <option value="接触">接触</option>
+                            <option value="递进">递进</option>
+                            <option value="深入">深入</option>
+                            <option value="执行">执行</option>
+                            <option value="冲刺">冲刺</option>
+                            <option value="谈判">谈判</option>
+                            <option value="签约">签约</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>进入当前阶段日期 *</label>
+                        <input type="date" name="stageDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>进攻计划得分（0-30）</label>
+                        <input type="number" name="attackPlanScore" placeholder="0" min="0" max="30" value="0">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeAddProjectModal()">取消</button>
+                        <button type="submit" class="btn btn-primary">创建项目</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 脚本加载 -->
+    <script src="data-model.js"></script>
+    <script src="storage.js"></script>
+    <script src="calculator-v2.js"></script>
+    <script src="test-data.js"></script>
+    <script src="app-v2.js"></script>
+</body>
+</html>
