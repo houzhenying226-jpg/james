@@ -856,6 +856,29 @@ body {
     color: var(--danger-color);
 }
 
+.validation-summary {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.validation-summary.validation-pass {
+    background: rgba(40, 167, 69, 0.1);
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.validation-summary.validation-fail {
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.validation-hint {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
 .score-preview {
     margin-top: 15px;
     padding-top: 15px;

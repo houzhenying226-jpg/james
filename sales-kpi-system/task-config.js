@@ -6,6 +6,208 @@
 // 阶段常量
 const STAGES = ['接触', '递进', '深入', '执行', '冲刺', '谈判', '签约'];
 
+/**
+ * 详细验证函数 - 返回每个检查项的状态
+ */
+const VALIDATION_FUNCTIONS = {
+    // 任务1.1: MAN分析
+    '1.1': (fields) => {
+        const checks = [
+            { label: 'M(需求)确认', passed: !!fields.hasM },
+            { label: 'A(资金)确认', passed: !!fields.hasA },
+            { label: 'N(决策人)确认', passed: !!fields.hasN },
+            { label: '立项报告', passed: !!fields.projectReport }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 0 };
+    },
+
+    // 任务1.2: 决策链绘制
+    '1.2': (fields) => {
+        const hasFile = !!fields.decisionChainFile;
+        const count = parseInt(fields.keyPersonCount) || 0;
+        const checks = [
+            { label: '决策链图', passed: hasFile },
+            { label: `关键人数量≥3人 (当前:${count}人)`, passed: count >= 3 }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务1.3: 竞争对手分析
+    '1.3': (fields) => {
+        const hasFile = !!fields.competitorAnalysis;
+        const count = parseInt(fields.competitorCount) || 0;
+        const checks = [
+            { label: '竞争分析报告', passed: hasFile },
+            { label: `竞争对手数量≥2个 (当前:${count}个)`, passed: count >= 2 }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务1.4: 标准植入
+    '1.4': (fields) => {
+        const count = parseInt(fields.standardCount) || 0;
+        const hasList = !!fields.standardList;
+        const checks = [
+            { label: `植入标准数量≥2个 (当前:${count}个)`, passed: count >= 2 },
+            { label: '植入标准详情', passed: hasList }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务2.1: 需求调研
+    '2.1': (fields) => {
+        const checks = [
+            { label: '调研报告', passed: !!fields.surveyReport },
+            { label: '需求确认书', passed: !!fields.requirementConfirm }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务2.2: 方案设计
+    '2.2': (fields) => {
+        const checks = [
+            { label: '方案文档', passed: !!fields.solutionFile },
+            { label: '方案亮点', passed: !!fields.solutionHighlights }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务2.3: 方案讲解
+    '2.3': (fields) => {
+        const attendees = fields.attendees || '';
+        const hasKeyPerson = /总经理|董事长|决策|总监|副总/.test(attendees);
+        const count = parseInt(fields.feedbackCount) || 0;
+        const checks = [
+            {
+                label: '关键决策人参会',
+                passed: hasKeyPerson,
+                hint: hasKeyPerson ? `检测到: ${attendees.match(/总经理|董事长|决策|总监|副总/g)?.[0] || ''}` : '需包含: 总经理/董事长/总监/副总'
+            },
+            { label: `反馈问题数量≥5条 (当前:${count}条)`, passed: count >= 5 }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务3.1: 方案深化
+    '3.1': (fields) => {
+        const hasFile = !!fields.deepenedSolutionFile;
+        const count = parseInt(fields.improvementCount) || 0;
+        const checks = [
+            { label: '深化方案文档', passed: hasFile },
+            { label: `优化点数量≥3个 (当前:${count}个)`, passed: count >= 3 }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务3.2: 样品展示
+    '3.2': (fields) => {
+        const checks = [
+            { label: '样品已准备', passed: !!fields.samplePrepared },
+            { label: '展示日期', passed: !!fields.demoDate },
+            { label: '展示反馈', passed: !!fields.demoFeedback }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务3.3: 样品对比
+    '3.3': (fields) => {
+        const checks = [
+            { label: '对比日期', passed: !!fields.comparisonDate },
+            { label: '对比结果', passed: !!fields.comparisonResult },
+            { label: '我方胜出点', passed: !!fields.ourWinPoints }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务4.1: 投标文件
+    '4.1': (fields) => {
+        const checks = [
+            { label: '投标文件', passed: !!fields.bidDocumentFile },
+            { label: '技术方案', passed: !!fields.technicalProposal },
+            { label: '商务方案', passed: !!fields.commercialProposal }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务4.2: 技术交流会
+    '4.2': (fields) => {
+        const checks = [
+            { label: '会议日期', passed: !!fields.meetingDate },
+            { label: '会议纪要', passed: !!fields.meetingMinutes }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务4.3: 商务交流会
+    '4.3': (fields) => {
+        const checks = [
+            { label: '会议日期', passed: !!fields.meetingDate },
+            { label: '会议纪要', passed: !!fields.meetingMinutes }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务5.1: 评分模拟
+    '5.1': (fields) => {
+        const hasFile = !!fields.scoringSimulationFile;
+        const count = parseInt(fields.riskCount) || 0;
+        const hasMeasures = !!fields.countermeasures;
+        const checks = [
+            { label: '模拟评分表', passed: hasFile },
+            { label: `风险点数量≥3个 (当前:${count}个)`, passed: count >= 3 },
+            { label: '应对措施', passed: hasMeasures }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务6.1: 商务谈判
+    '6.1': (fields) => {
+        const checks = [
+            { label: '谈判日期', passed: !!fields.negotiationDate },
+            { label: '谈判纪要', passed: !!fields.negotiationFile },
+            { label: '最终价格', passed: !!fields.finalPrice }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 50 };
+    },
+
+    // 任务7.1: 合同签订
+    '7.1': (fields) => {
+        const checks = [
+            { label: '签约日期', passed: !!fields.contractDate },
+            { label: '合同文件', passed: !!fields.contractFile },
+            { label: '合同金额', passed: !!fields.contractAmount }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 0 };
+    }
+};
+
+/**
+ * 获取详细验证结果
+ */
+function getDetailedValidation(taskCode, fields) {
+    const validateFn = VALIDATION_FUNCTIONS[taskCode];
+    if (!validateFn) {
+        return { checks: [], allPassed: false, passRate: 0 };
+    }
+    return validateFn(fields);
+}
+
 // 16个任务完整配置
 const TASK_CONFIG = [
     // ==================== 接触阶段 ====================

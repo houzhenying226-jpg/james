@@ -591,27 +591,65 @@ function updateValidationPreview() {
     const form = document.getElementById('versionForm');
     const formData = getFormData(form, config);
 
-    // 验证
-    let isValid = false;
-    try {
-        isValid = config.validation.check(formData);
-    } catch (e) {
-        isValid = false;
+    // 使用详细验证函数
+    const validationResult = getDetailedValidation(currentTaskCode, formData);
+
+    // 渲染每个检查项
+    const validationItems = document.getElementById('validationItems');
+    let itemsHtml = '';
+
+    if (validationResult.checks.length > 0) {
+        validationResult.checks.forEach(check => {
+            const icon = check.passed ? '✅' : '❌';
+            const statusClass = check.passed ? 'validation-pass' : 'validation-fail';
+            const hint = check.hint ? ` <span class="validation-hint">(${check.hint})</span>` : '';
+            itemsHtml += `
+                <div class="validation-item ${statusClass}">
+                    <span class="validation-icon">${icon}</span>
+                    <span>${check.label}${hint}</span>
+                </div>
+            `;
+        });
+
+        // 显示汇总
+        const passedCount = validationResult.checks.filter(c => c.passed).length;
+        const totalCount = validationResult.checks.length;
+        if (validationResult.allPassed) {
+            itemsHtml += `
+                <div class="validation-summary validation-pass">
+                    ✅ 所有检查项已通过 (${passedCount}/${totalCount})
+                </div>
+            `;
+        } else {
+            const missingItems = validationResult.checks.filter(c => !c.passed).map(c => c.label);
+            itemsHtml += `
+                <div class="validation-summary validation-fail">
+                    ❌ 缺少以下项目：${missingItems.join('、')}
+                </div>
+            `;
+        }
+    } else {
+        // 回退到旧逻辑
+        let isValid = false;
+        try {
+            isValid = config.validation.check(formData);
+        } catch (e) {
+            isValid = false;
+        }
+        itemsHtml = `
+            <div class="validation-item">
+                <span class="validation-icon ${isValid ? 'validation-pass' : 'validation-fail'}">
+                    ${isValid ? '✅' : '❌'}
+                </span>
+                <span>${config.validation.description}</span>
+            </div>
+        `;
     }
 
-    // 更新预览
-    const validationItems = document.getElementById('validationItems');
-    validationItems.innerHTML = `
-        <div class="validation-item">
-            <span class="validation-icon ${isValid ? 'validation-pass' : 'validation-fail'}">
-                ${isValid ? '✓' : '✗'}
-            </span>
-            <span>${config.validation.description}</span>
-        </div>
-    `;
+    validationItems.innerHTML = itemsHtml;
 
     // 更新预计得分
-    const rate = isValid ? config.validation.passRate : config.validation.failRate;
+    const rate = validationResult.allPassed ? config.validation.passRate : config.validation.failRate;
     const score = Math.round(config.weight * (rate / 100) * 100) / 100;
     document.getElementById('previewScore').textContent = `${score} / ${config.weight} (${rate}%)`;
 }
