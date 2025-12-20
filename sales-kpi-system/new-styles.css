@@ -1,0 +1,971 @@
+/* 销售考核系统 - 重构版样式 */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary-color: #667eea;
+    --primary-dark: #5a67d8;
+    --secondary-color: #764ba2;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --info-color: #17a2b8;
+    --light-bg: #f8f9fa;
+    --card-bg: #ffffff;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-muted: #999999;
+    --border-color: #e0e0e0;
+    --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    --shadow-hover: 0 5px 20px rgba(0, 0, 0, 0.15);
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    min-height: 100vh;
+    color: var(--text-primary);
+}
+
+/* ==================== 布局 ==================== */
+
+.app-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.app-header {
+    text-align: center;
+    color: white;
+    padding: 20px 0;
+}
+
+.app-header h1 {
+    font-size: 2rem;
+    margin-bottom: 5px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.app-header .subtitle {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+/* ==================== 三视图导航 ==================== */
+
+.main-nav {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px;
+    border-radius: 15px;
+}
+
+.nav-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 15px 20px;
+    border: none;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.nav-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.nav-btn.active {
+    background: white;
+    color: var(--primary-color);
+}
+
+.nav-icon {
+    font-size: 1.2rem;
+}
+
+/* ==================== 主内容区 ==================== */
+
+.main-content {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: var(--shadow);
+    min-height: 500px;
+}
+
+.view {
+    display: none;
+}
+
+.view.active {
+    display: block;
+}
+
+.view-header, .assessment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.view-header h2, .assessment-header h2 {
+    font-size: 1.5rem;
+    color: var(--text-primary);
+}
+
+/* ==================== 按钮 ==================== */
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: var(--light-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--border-color);
+}
+
+.btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.btn-danger {
+    background: var(--danger-color);
+    color: white;
+}
+
+.btn-back {
+    background: transparent;
+    color: var(--primary-color);
+    padding: 8px 15px;
+}
+
+.btn-back:hover {
+    background: var(--light-bg);
+}
+
+/* ==================== 筛选栏 ==================== */
+
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--light-bg);
+    border-radius: 10px;
+}
+
+.filter-bar label {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.filter-bar select {
+    padding: 8px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: white;
+}
+
+/* ==================== 项目卡片 ==================== */
+
+.projects-list {
+    display: grid;
+    gap: 15px;
+}
+
+.project-card {
+    background: var(--light-bg);
+    border-radius: 12px;
+    padding: 20px;
+    border-left: 4px solid var(--primary-color);
+    transition: all 0.3s ease;
+}
+
+.project-card:hover {
+    transform: translateX(5px);
+    box-shadow: var(--shadow-hover);
+}
+
+.project-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.project-card-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.project-card-stage {
+    background: var(--primary-color);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+}
+
+.project-card-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.project-card-info span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.project-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+.project-card-score {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.project-card-score .score-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.project-card-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* ==================== 任务视图（工作台） ==================== */
+
+.workbench-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.workbench-title {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.workbench-title h2 {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+}
+
+.workbench-score {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    padding: 10px 20px;
+    border-radius: 10px;
+    color: white;
+}
+
+.workbench-score .score-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.task-filters {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.filter-btn, .group-btn {
+    padding: 8px 15px;
+    border: 2px solid var(--border-color);
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.filter-btn.active, .group-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* ==================== 任务卡片 ==================== */
+
+.tasks-list {
+    display: grid;
+    gap: 15px;
+}
+
+.task-category-header {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    padding: 10px 0;
+    border-bottom: 2px solid var(--primary-color);
+    margin-top: 20px;
+}
+
+.task-category-header:first-child {
+    margin-top: 0;
+}
+
+.task-card {
+    background: var(--light-bg);
+    border-radius: 12px;
+    padding: 20px;
+    border-left: 4px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.task-card:hover {
+    transform: translateX(3px);
+    box-shadow: var(--shadow);
+}
+
+.task-card.completed {
+    border-left-color: var(--success-color);
+}
+
+.task-card.partial {
+    border-left-color: var(--warning-color);
+}
+
+.task-card.pending {
+    border-left-color: var(--danger-color);
+}
+
+.task-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.task-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.task-code {
+    font-weight: bold;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+.task-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.task-category-badge {
+    background: var(--light-bg);
+    color: var(--text-secondary);
+    padding: 3px 10px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    border: 1px solid var(--border-color);
+}
+
+.task-card-status {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 10px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.task-status-icon {
+    font-size: 1.1rem;
+}
+
+.task-score {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.task-card-versions {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 15px;
+}
+
+.version-chain {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: 5px;
+}
+
+.version-badge {
+    background: var(--border-color);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+}
+
+.version-badge.best {
+    background: var(--success-color);
+    color: white;
+}
+
+.task-card-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* ==================== 考核视图 ==================== */
+
+.month-selector {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.month-nav {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--light-bg);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.month-nav:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.month-display {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.snapshot-status {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 20px;
+    background: var(--light-bg);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.snapshot-status.locked {
+    background: rgba(40, 167, 69, 0.1);
+}
+
+.status-icon {
+    font-size: 1.5rem;
+}
+
+.status-text {
+    flex: 1;
+    font-weight: 600;
+}
+
+.ranking-content {
+    margin-bottom: 20px;
+}
+
+.ranking-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ranking-table th,
+.ranking-table td {
+    padding: 15px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ranking-table th {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    font-weight: 600;
+}
+
+.ranking-table tr:hover {
+    background: var(--light-bg);
+}
+
+.rank-cell {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.rank-1 { color: #ffd700; }
+.rank-2 { color: #c0c0c0; }
+.rank-3 { color: #cd7f32; }
+
+.name-cell {
+    cursor: pointer;
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+.score-cell {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.assessment-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+}
+
+/* ==================== 弹窗 ==================== */
+
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 15px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-content.modal-large {
+    max-width: 700px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border-radius: 15px 15px 0 0;
+}
+
+.modal-header h2 {
+    font-size: 1.2rem;
+}
+
+.modal-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+/* ==================== 表单 ==================== */
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.form-group textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* 复选框样式 */
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+}
+
+/* 文件输入样式 */
+.file-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.file-input-wrapper input[type="text"] {
+    flex: 1;
+}
+
+/* ==================== 版本历史 ==================== */
+
+.version-list {
+    display: grid;
+    gap: 15px;
+}
+
+.version-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 15px;
+    background: var(--light-bg);
+    border-radius: 10px;
+    border: 2px solid var(--border-color);
+}
+
+.version-item.best {
+    border-color: var(--success-color);
+    background: rgba(40, 167, 69, 0.05);
+}
+
+.version-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.version-icon.best {
+    background: var(--success-color);
+    color: white;
+}
+
+.version-icon.normal {
+    background: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.version-content {
+    flex: 1;
+}
+
+.version-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.version-id {
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.version-score {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.version-date {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+}
+
+.version-fields {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.version-field {
+    margin-bottom: 5px;
+}
+
+.version-field strong {
+    color: var(--text-primary);
+}
+
+/* ==================== 验证预览 ==================== */
+
+.validation-preview {
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--light-bg);
+    border-radius: 10px;
+}
+
+.validation-preview h4 {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.validation-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.validation-icon {
+    font-size: 1.2rem;
+}
+
+.validation-pass {
+    color: var(--success-color);
+}
+
+.validation-fail {
+    color: var(--danger-color);
+}
+
+.score-preview {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.score-preview-label {
+    font-weight: 600;
+}
+
+.score-preview-value {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+/* ==================== 设置 ==================== */
+
+.settings-section {
+    margin-bottom: 25px;
+}
+
+.settings-section h3 {
+    color: var(--text-primary);
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-buttons {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+/* ==================== 浮动按钮 ==================== */
+
+.floating-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    z-index: 100;
+}
+
+.floating-btn:hover {
+    transform: scale(1.1);
+}
+
+/* ==================== 空状态 ==================== */
+
+.empty-hint {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 40px;
+    font-size: 1.1rem;
+}
+
+/* ==================== 响应式 ==================== */
+
+@media (max-width: 768px) {
+    .app-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .main-nav {
+        flex-direction: column;
+    }
+
+    .nav-btn {
+        justify-content: flex-start;
+    }
+
+    .view-header, .assessment-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+
+    .filter-bar {
+        flex-wrap: wrap;
+    }
+
+    .task-filters {
+        flex-direction: column;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .workbench-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+
+    .modal-content {
+        margin: 10px;
+    }
+}
