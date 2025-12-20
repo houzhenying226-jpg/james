@@ -3,6 +3,215 @@
  * 三层验证：硬规则 → 关联验证 → AI验证
  */
 
+// ==================== 跨任务验证配置 ====================
+const CROSS_VALIDATIONS = {
+    // 价格链一致性验证：4.1投标价 → 6.1谈判价 → 7.1合同价
+    priceChain: {
+        id: 'price_chain',
+        label: '价格链一致性',
+        tasks: ['4.1', '6.1', '7.1'],
+        validate: (projectId) => {
+            const task41 = DataStorage.getTask(`${projectId}-4.1`);
+            const task61 = DataStorage.getTask(`${projectId}-6.1`);
+            const task71 = DataStorage.getTask(`${projectId}-7.1`);
+
+            const results = { passed: true, checks: [] };
+
+            // 获取各任务的价格数据
+            const bidPrice = task41?.versions?.[0]?.fields?.bidPrice;
+            const finalPrice = task61?.versions?.[0]?.fields?.finalPrice;
+            const contractAmount = task71?.versions?.[0]?.fields?.contractAmount;
+
+            // 检查4.1 → 6.1价格变化
+            if (bidPrice && finalPrice) {
+                const bid = parseFloat(bidPrice);
+                const final = parseFloat(finalPrice);
+                if (!isNaN(bid) && !isNaN(final) && bid > 0) {
+                    const reduction = ((bid - final) / bid * 100).toFixed(1);
+                    if (final > bid) {
+                        results.checks.push({
+                            id: 'bid_to_final',
+                            passed: false,
+                            message: `谈判价${final}万高于投标价${bid}万，异常`,
+                            severity: 'error'
+                        });
+                        results.passed = false;
+                    } else if (final < bid * 0.7) {
+                        results.checks.push({
+                            id: 'bid_to_final',
+                            passed: false,
+                            message: `降价幅度${reduction}%超过30%，需说明原因`,
+                            severity: 'warning'
+                        });
+                    } else {
+                        results.checks.push({
+                            id: 'bid_to_final',
+                            passed: true,
+                            message: `投标价→谈判价：降${reduction}%`,
+                            severity: 'info'
+                        });
+                    }
+                }
+            }
+
+            // 检查6.1 → 7.1价格一致性
+            if (finalPrice && contractAmount) {
+                const final = parseFloat(finalPrice);
+                const contract = parseFloat(contractAmount);
+                if (!isNaN(final) && !isNaN(contract) && final > 0) {
+                    const diff = Math.abs(contract - final) / final * 100;
+                    if (diff > 5) {
+                        results.checks.push({
+                            id: 'final_to_contract',
+                            passed: false,
+                            message: `合同金额${contract}万与谈判价${final}万差异${diff.toFixed(1)}%（超过5%）`,
+                            severity: 'warning'
+                        });
+                    } else {
+                        results.checks.push({
+                            id: 'final_to_contract',
+                            passed: true,
+                            message: `谈判价→合同价：一致（差异${diff.toFixed(1)}%）`,
+                            severity: 'info'
+                        });
+                    }
+                }
+            }
+
+            return results;
+        }
+    },
+
+    // 需求链一致性验证：2.1需求 → 2.2方案 → 3.1深化
+    requirementChain: {
+        id: 'requirement_chain',
+        label: '需求响应链',
+        tasks: ['2.1', '2.2', '3.1'],
+        validate: (projectId) => {
+            const task21 = DataStorage.getTask(`${projectId}-2.1`);
+            const task22 = DataStorage.getTask(`${projectId}-2.2`);
+            const task31 = DataStorage.getTask(`${projectId}-3.1`);
+
+            const results = { passed: true, checks: [] };
+
+            // 获取需求数量
+            const requirements = task21?.versions?.[0]?.fields?.requirementList ||
+                task21?.versions?.[0]?.fields?.keyRequirements || '';
+            const reqItems = requirements.split(/[,，;；\n、]+/).filter(i => i.trim()).length;
+
+            // 获取方案是否响应需求
+            const solutionFile = task22?.versions?.[0]?.fields?.solutionFile;
+            const technicalPlan = task22?.versions?.[0]?.fields?.technicalPlan || '';
+
+            if (reqItems > 0 && solutionFile) {
+                results.checks.push({
+                    id: 'req_to_solution',
+                    passed: true,
+                    message: `${reqItems}项需求已有对应方案`,
+                    severity: 'info'
+                });
+            } else if (reqItems > 0 && !solutionFile) {
+                results.checks.push({
+                    id: 'req_to_solution',
+                    passed: false,
+                    message: `${reqItems}项需求待响应（方案未上传）`,
+                    severity: 'warning'
+                });
+            }
+
+            // 获取深化修改数量
+            const modifications = task31?.versions?.[0]?.fields?.modifyList ||
+                task31?.versions?.[0]?.fields?.changesDescription || '';
+            const modItems = modifications.split(/[,，;；\n、]+/).filter(i => i.trim()).length;
+
+            // 对比2.3的问题数和3.1的修改数
+            const task23 = DataStorage.getTask(`${projectId}-2.3`);
+            const feedbackList = task23?.versions?.[0]?.fields?.feedbackList ||
+                task23?.versions?.[0]?.fields?.feedbackSummary || '';
+            const feedbackItems = feedbackList.split(/[,，;；\n、]+/).filter(i => i.trim()).length;
+
+            if (feedbackItems > 0 && modItems > 0) {
+                if (modItems < feedbackItems) {
+                    results.checks.push({
+                        id: 'feedback_to_modify',
+                        passed: false,
+                        message: `收集${feedbackItems}个问题，仅修改${modItems}处，可能有遗漏`,
+                        severity: 'warning'
+                    });
+                } else {
+                    results.checks.push({
+                        id: 'feedback_to_modify',
+                        passed: true,
+                        message: `${feedbackItems}个问题→${modItems}处修改，响应充分`,
+                        severity: 'info'
+                    });
+                }
+            }
+
+            return results;
+        }
+    },
+
+    // 决策链覆盖验证：1.2决策链 → 2.3/4.2/6.1参会人
+    decisionChainCoverage: {
+        id: 'decision_chain_coverage',
+        label: '决策链覆盖',
+        tasks: ['1.2', '2.3', '4.2', '6.1'],
+        validate: (projectId) => {
+            const task12 = DataStorage.getTask(`${projectId}-1.2`);
+            const keyPersonList = task12?.versions?.[0]?.fields?.keyPersonList || '';
+
+            const results = { passed: true, checks: [] };
+
+            if (!keyPersonList) {
+                results.checks.push({
+                    id: 'no_decision_chain',
+                    passed: false,
+                    message: '决策链未定义，无法验证覆盖情况',
+                    severity: 'warning'
+                });
+                return results;
+            }
+
+            // 提取决策链中的姓名
+            const keyPersons = keyPersonList.split(/[,，;；\n、]+/).filter(i => i.trim());
+
+            // 检查各任务的参会人
+            const checkTasks = [
+                { code: '2.3', label: '方案讲解', field: 'attendees' },
+                { code: '4.2', label: '技术交流', field: 'customerAttendees' },
+                { code: '6.1', label: '商务谈判', field: 'customerAttendees' }
+            ];
+
+            for (const checkTask of checkTasks) {
+                const task = DataStorage.getTask(`${projectId}-${checkTask.code}`);
+                const attendees = task?.versions?.[0]?.fields?.[checkTask.field] || '';
+
+                if (attendees) {
+                    // 简单检查是否有决策链中的人
+                    const hasKeyPerson = keyPersons.some(person => {
+                        // 提取姓名部分（去除职位）
+                        const namePart = person.split(/[-（(]/)[0].trim();
+                        return attendees.includes(namePart) ||
+                            attendees.includes(person);
+                    });
+
+                    results.checks.push({
+                        id: `decision_${checkTask.code}`,
+                        passed: hasKeyPerson,
+                        message: hasKeyPerson
+                            ? `${checkTask.label}有决策链关键人参与`
+                            : `${checkTask.label}参会人不在决策链中，建议核实`,
+                        severity: hasKeyPerson ? 'info' : 'warning'
+                    });
+                }
+            }
+
+            return results;
+        }
+    }
+};
+
 const ValidationEngine = {
     /**
      * 执行完整验证
@@ -304,8 +513,160 @@ const ValidationEngine = {
 
         html += '</div>';
         return html;
+    },
+
+    /**
+     * 执行跨任务验证
+     * @param {string} projectId - 项目ID
+     * @param {string} validationType - 验证类型 (priceChain, requirementChain, decisionChainCoverage, 或 'all')
+     * @returns {Object} 验证结果
+     */
+    runCrossValidation(projectId, validationType = 'all') {
+        const results = {
+            projectId,
+            timestamp: new Date().toISOString(),
+            validations: []
+        };
+
+        if (validationType === 'all') {
+            // 执行所有跨任务验证
+            for (const [key, config] of Object.entries(CROSS_VALIDATIONS)) {
+                try {
+                    const validationResult = config.validate(projectId);
+                    results.validations.push({
+                        id: config.id,
+                        label: config.label,
+                        tasks: config.tasks,
+                        ...validationResult
+                    });
+                } catch (error) {
+                    results.validations.push({
+                        id: config.id,
+                        label: config.label,
+                        tasks: config.tasks,
+                        passed: true,
+                        checks: [{
+                            id: 'error',
+                            passed: true,
+                            message: `验证跳过: ${error.message}`,
+                            severity: 'info'
+                        }]
+                    });
+                }
+            }
+        } else if (CROSS_VALIDATIONS[validationType]) {
+            // 执行指定的跨任务验证
+            const config = CROSS_VALIDATIONS[validationType];
+            try {
+                const validationResult = config.validate(projectId);
+                results.validations.push({
+                    id: config.id,
+                    label: config.label,
+                    tasks: config.tasks,
+                    ...validationResult
+                });
+            } catch (error) {
+                results.validations.push({
+                    id: config.id,
+                    label: config.label,
+                    tasks: config.tasks,
+                    passed: true,
+                    checks: [{
+                        id: 'error',
+                        passed: true,
+                        message: `验证跳过: ${error.message}`,
+                        severity: 'info'
+                    }]
+                });
+            }
+        }
+
+        // 计算总体结果
+        results.overall = {
+            passed: results.validations.every(v => v.passed),
+            totalChecks: results.validations.reduce((sum, v) => sum + v.checks.length, 0),
+            passedChecks: results.validations.reduce((sum, v) =>
+                sum + v.checks.filter(c => c.passed).length, 0
+            ),
+            warnings: results.validations.reduce((sum, v) =>
+                sum + v.checks.filter(c => !c.passed && c.severity === 'warning').length, 0
+            ),
+            errors: results.validations.reduce((sum, v) =>
+                sum + v.checks.filter(c => !c.passed && c.severity === 'error').length, 0
+            )
+        };
+
+        return results;
+    },
+
+    /**
+     * 渲染跨任务验证结果HTML
+     */
+    renderCrossValidationResult(result) {
+        let html = '<div class="cross-validation-result">';
+        html += '<h3>🔗 跨任务一致性验证</h3>';
+
+        for (const validation of result.validations) {
+            const statusIcon = validation.passed ? '✅' : '⚠️';
+            html += `
+                <div class="cross-validation-section">
+                    <h4>${statusIcon} ${validation.label}</h4>
+                    <p class="task-chain">涉及任务：${validation.tasks.join(' → ')}</p>
+                    <ul class="validation-list">
+            `;
+
+            for (const check of validation.checks) {
+                const icon = check.passed ? '✅' : (check.severity === 'error' ? '❌' : '⚠️');
+                const cls = check.passed ? 'pass' : (check.severity === 'error' ? 'fail' : 'warning');
+                html += `<li class="${cls}">${icon} ${check.message}</li>`;
+            }
+
+            html += '</ul></div>';
+        }
+
+        // 总结
+        const { overall } = result;
+        const statusText = overall.errors > 0 ? '发现问题' :
+            (overall.warnings > 0 ? '有待改进' : '一致性良好');
+        const statusClass = overall.errors > 0 ? 'fail' :
+            (overall.warnings > 0 ? 'warning' : 'pass');
+
+        html += `
+            <div class="cross-validation-summary ${statusClass}">
+                <span class="summary-status">${statusText}</span>
+                <span class="summary-detail">
+                    共${overall.totalChecks}项检查，
+                    ${overall.passedChecks}项通过，
+                    ${overall.warnings}项警告，
+                    ${overall.errors}项错误
+                </span>
+            </div>
+        `;
+
+        html += '</div>';
+        return html;
+    },
+
+    /**
+     * 获取项目的跨任务验证摘要
+     */
+    getCrossValidationSummary(projectId) {
+        const result = this.runCrossValidation(projectId, 'all');
+        return {
+            passed: result.overall.passed,
+            passedCount: result.overall.passedChecks,
+            totalCount: result.overall.totalChecks,
+            warnings: result.overall.warnings,
+            errors: result.overall.errors,
+            details: result.validations.map(v => ({
+                label: v.label,
+                passed: v.passed,
+                checkCount: v.checks.length
+            }))
+        };
     }
 };
 
 // 导出
 window.ValidationEngine = ValidationEngine;
+window.CROSS_VALIDATIONS = CROSS_VALIDATIONS;

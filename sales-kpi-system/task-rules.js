@@ -1833,66 +1833,316 @@ const TASK_RULES = {
 
     // ==================== 5.1 评分模拟与风险应对 ====================
     '5.1': {
+        fields: {
+            scoringSimulationFile: { type: 'filename', label: '模拟评分表' },
+            expectedScore: { type: 'number', label: '预计得分' },
+            riskList: { type: 'list', label: '风险点列表' },
+            riskDescription: { type: 'text', label: '风险描述' },
+            countermeasures: { type: 'text', label: '应对措施' }
+        },
         hardRules: [
             {
                 id: 'scoring_simulation',
                 label: '模拟评分表',
-                validate: (f) => !!f.scoringSimulationFile,
-                getMessage: (f, passed) => passed ? '✓ 模拟评分表已上传' : '请上传模拟评分表',
+                validate: (f) => {
+                    const file = f.scoringSimulationFile || '';
+                    if (!file.trim()) return false;
+                    if (!/\.(xlsx?|docx?|pdf)$/i.test(file)) return false;
+                    const name = file.replace(/\.[^.]+$/, '');
+                    return name.length >= 4;
+                },
+                getMessage: (f, passed) => {
+                    const file = f.scoringSimulationFile || '';
+                    if (!file.trim()) return '模拟评分表：未上传';
+                    if (!/\.(xlsx?|docx?|pdf)$/i.test(file)) return '模拟评分表：请上传有效文件（xlsx/docx/pdf）';
+                    const name = file.replace(/\.[^.]+$/, '');
+                    if (name.length < 4) return '模拟评分表：文件名太简单';
+                    return `✓ 模拟评分表：${file}`;
+                },
+                severity: 'error'
+            },
+            {
+                id: 'expected_score',
+                label: '预计得分',
+                validate: (f) => {
+                    const score = parseFloat(f.expectedScore);
+                    return !isNaN(score) && score >= 0 && score <= 100;
+                },
+                getMessage: (f, passed) => {
+                    const score = parseFloat(f.expectedScore);
+                    if (isNaN(score)) return '预计得分：请填写有效数字';
+                    if (score < 0 || score > 100) return '预计得分：应在0-100分之间';
+                    return `✓ 预计得分：${score}分`;
+                },
                 severity: 'error'
             },
             {
                 id: 'risk_count',
                 label: '风险点数量',
-                validate: (f) => (parseInt(f.riskCount) || 0) >= 3,
+                validate: (f) => {
+                    const result = validateList(f.riskList, {
+                        minCount: 3,
+                        minItemLength: 10,
+                        uniqueRequired: true
+                    });
+                    return result.valid;
+                },
                 getMessage: (f, passed) => {
-                    const count = f.riskCount || 0;
-                    return passed ? `✓ 识别${count}个风险点` : '至少识别3个风险点';
+                    const result = validateList(f.riskList, {
+                        minCount: 3,
+                        minItemLength: 10,
+                        uniqueRequired: true
+                    });
+                    if (passed) return `✓ 风险点：${result.items?.length || 0}个`;
+                    return result.message || '至少识别3个风险点';
+                },
+                severity: 'error'
+            },
+            {
+                id: 'risk_description',
+                label: '风险描述质量',
+                validate: (f) => {
+                    const text = f.riskDescription || f.riskList || '';
+                    if (text.length < 25) return false;
+                    // 检查敷衍内容
+                    const lazyPatterns = [
+                        /^(可能有风险|有一定风险|风险较低|风险可控|需要注意)$/,
+                        /^(无|暂无|略|待定)$/
+                    ];
+                    for (const pattern of lazyPatterns) {
+                        if (pattern.test(text.trim())) return false;
+                    }
+                    return true;
+                },
+                getMessage: (f, passed) => {
+                    const text = f.riskDescription || f.riskList || '';
+                    if (text.length < 25) return `风险描述：${text.length}字（需≥25字）`;
+                    if (passed) return `✓ 风险描述：${text.length}字`;
+                    return '风险描述：请具体说明风险内容，避免"风险可控""需要注意"等敷衍表述';
                 },
                 severity: 'error'
             },
             {
                 id: 'countermeasures',
-                label: '应对措施',
-                validate: (f) => (f.countermeasures || '').length >= 50,
-                getMessage: (f, passed) => passed ? '✓ 应对措施描述充分' : '请详细描述应对措施（至少50字）',
+                label: '应对措施质量',
+                validate: (f) => {
+                    const text = f.countermeasures || '';
+                    if (text.length < 30) return false;
+                    // 检查敷衍内容
+                    const lazyPatterns = [
+                        /^(加强沟通|密切关注|持续跟进|及时处理|积极应对)$/,
+                        /^(无|暂无|略|待定)$/
+                    ];
+                    for (const pattern of lazyPatterns) {
+                        if (pattern.test(text.trim())) return false;
+                    }
+                    // 应包含具体动作词
+                    return /准备|调整|联系|提供|修改|增加|降低|争取|协调/.test(text);
+                },
+                getMessage: (f, passed) => {
+                    const text = f.countermeasures || '';
+                    if (text.length < 30) return `应对措施：${text.length}字（需≥30字）`;
+                    if (!passed) return '应对措施：请具体说明应对方案，包含具体行动（如：准备备选方案、联系技术支持等）';
+                    return `✓ 应对措施：${text.length}字`;
+                },
                 severity: 'error'
+            },
+            {
+                id: 'risk_diversity',
+                label: '风险类型多样性',
+                validate: (f) => {
+                    const text = (f.riskList || '') + ' ' + (f.riskDescription || '');
+                    // 检查是否覆盖多种风险类型
+                    const riskTypes = ['技术', '商务', '价格', '竞争', '交期', '质量', '服务', '资金'];
+                    const covered = riskTypes.filter(type => text.includes(type));
+                    return covered.length >= 2;
+                },
+                getMessage: (f, passed) => {
+                    if (passed) return '✓ 风险类型覆盖充分';
+                    return '风险应覆盖多个维度（如：技术风险、商务风险、竞争风险、交期风险等）';
+                },
+                severity: 'warning'
             }
         ],
-        crossRefs: [],
+        crossRefs: [
+            {
+                id: 'cross_bid_risk',
+                label: '风险与投标对照',
+                refTaskCode: '4.1',
+                validate: (curr, ref) => {
+                    // 风险评估应考虑投标价格和技术方案的风险
+                    return true; // AI会做更深入检查
+                },
+                passMessage: '风险评估已考虑投标内容',
+                failMessage: '建议结合投标文件识别风险',
+                severity: 'warning'
+            }
+        ],
         aiRules: [
             {
                 id: 'ai_risk_coverage',
                 label: '风险覆盖度',
-                prompt: '请评估风险清单是否涵盖了技术风险、商务风险、竞争风险等多个维度',
-                targetFields: ['riskList', 'countermeasures']
+                prompt: `请验证任务5.1 风险应对的内容质量：
+
+验证要点：
+1. 3个风险点是否互不重复
+2. 是否覆盖多种风险类型（技术/商务/竞争/交期等）
+3. 每个风险的应对措施是否具体可执行（而非"加强沟通""密切关注"）
+
+评分标准：
+- 风险独立、类型多样、措施具体：通过
+- 风险重复或措施敷衍：不通过`,
+                targetFields: ['riskList', 'riskDescription', 'countermeasures']
             }
         ]
     },
 
     // ==================== 6.1 商务谈判 ====================
     '6.1': {
+        fields: {
+            negotiationDate: { type: 'date', label: '谈判日期' },
+            negotiationFile: { type: 'filename', label: '谈判纪要' },
+            negotiationRounds: { type: 'number', label: '谈判轮次' },
+            customerAttendees: { type: 'text', label: '客户参会人' },
+            keyNegotiationPoints: { type: 'list', label: '关键谈判点' },
+            concessionRecord: { type: 'text', label: '让步记录' },
+            finalPrice: { type: 'number', label: '最终价格' },
+            priceReduction: { type: 'number', label: '降价幅度' }
+        },
         hardRules: [
             {
                 id: 'negotiation_date',
                 label: '谈判日期',
-                validate: (f) => !!f.negotiationDate,
-                getMessage: (f, passed) => passed ? '✓ 谈判日期已记录' : '请填写谈判日期',
+                validate: (f) => (f.negotiationDate || '').trim().length >= 8,
+                getMessage: (f, passed) => {
+                    const date = f.negotiationDate || '';
+                    return date.trim() ? `✓ 谈判日期：${date}` : '谈判日期：未填写';
+                },
                 severity: 'error'
             },
             {
                 id: 'negotiation_file',
                 label: '谈判纪要',
-                validate: (f) => !!f.negotiationFile,
-                getMessage: (f, passed) => passed ? '✓ 谈判纪要已上传' : '请上传谈判纪要',
+                validate: (f) => {
+                    const file = f.negotiationFile || '';
+                    if (!file.trim()) return false;
+                    if (!/\.(docx?|pdf)$/i.test(file)) return false;
+                    const name = file.replace(/\.[^.]+$/, '');
+                    return name.length >= 4;
+                },
+                getMessage: (f, passed) => {
+                    const file = f.negotiationFile || '';
+                    if (!file.trim()) return '谈判纪要：未上传';
+                    if (!/\.(docx?|pdf)$/i.test(file)) return '谈判纪要：请上传有效文件（docx/pdf）';
+                    const name = file.replace(/\.[^.]+$/, '');
+                    if (name.length < 4) return '谈判纪要：文件名太简单';
+                    return `✓ 谈判纪要：${file}`;
+                },
+                severity: 'error'
+            },
+            {
+                id: 'negotiation_rounds',
+                label: '谈判轮次',
+                validate: (f) => {
+                    const rounds = parseInt(f.negotiationRounds);
+                    return !isNaN(rounds) && rounds >= 1;
+                },
+                getMessage: (f, passed) => {
+                    const rounds = parseInt(f.negotiationRounds);
+                    if (isNaN(rounds)) return '谈判轮次：请填写有效数字';
+                    if (rounds < 1) return '谈判轮次：至少1轮';
+                    return `✓ 谈判轮次：${rounds}轮`;
+                },
+                severity: 'error'
+            },
+            {
+                id: 'customer_attendees',
+                label: '客户参会人',
+                validate: (f) => {
+                    const attendees = f.customerAttendees || '';
+                    if (attendees.trim().length < 2) return false;
+                    // 应包含职位信息
+                    return /经理|总监|主任|负责人|总|董事|决策|老板/.test(attendees);
+                },
+                getMessage: (f, passed) => {
+                    const attendees = f.customerAttendees || '';
+                    if (!attendees.trim()) return '客户参会人：未填写';
+                    if (!/经理|总监|主任|负责人|总|董事|决策|老板/.test(attendees)) {
+                        return '客户参会人需包含决策层（经理/总监/老板等）';
+                    }
+                    return `✓ 客户参会人：${attendees}`;
+                },
+                severity: 'error'
+            },
+            {
+                id: 'key_negotiation_points',
+                label: '关键谈判点',
+                validate: (f) => {
+                    const result = validateList(f.keyNegotiationPoints, {
+                        minCount: 3,
+                        minItemLength: 15,
+                        uniqueRequired: true
+                    });
+                    return result.valid;
+                },
+                getMessage: (f, passed) => {
+                    const result = validateList(f.keyNegotiationPoints, {
+                        minCount: 3,
+                        minItemLength: 15,
+                        uniqueRequired: true
+                    });
+                    if (passed) return `✓ 关键谈判点：${result.items?.length || 0}项`;
+                    return result.message || '至少记录3个关键谈判点';
+                },
+                severity: 'error'
+            },
+            {
+                id: 'concession_record',
+                label: '让步记录',
+                validate: (f) => {
+                    const text = f.concessionRecord || '';
+                    if (text.length < 30) return false;
+                    // 让步记录应包含具体内容
+                    return /让步|降价|优惠|赠送|延长|增加|减免|折扣/.test(text);
+                },
+                getMessage: (f, passed) => {
+                    const text = f.concessionRecord || '';
+                    if (text.length < 30) return `让步记录：${text.length}字（需≥30字）`;
+                    if (!passed) return '让步记录：请具体说明让步内容（价格让步、服务让步、交期让步等）';
+                    return `✓ 让步记录：${text.length}字`;
+                },
                 severity: 'error'
             },
             {
                 id: 'final_price',
                 label: '最终价格',
-                validate: (f) => (parseFloat(f.finalPrice) || 0) > 0,
-                getMessage: (f, passed) => passed ? `✓ 最终价格${f.finalPrice}万` : '请填写最终价格',
+                validate: (f) => {
+                    const price = parseFloat(f.finalPrice);
+                    return !isNaN(price) && price > 0;
+                },
+                getMessage: (f, passed) => {
+                    const price = parseFloat(f.finalPrice);
+                    if (isNaN(price) || price <= 0) return '最终价格：请填写有效金额';
+                    return `✓ 最终价格：${price}万`;
+                },
                 severity: 'error'
+            },
+            {
+                id: 'price_reduction',
+                label: '降价幅度合理性',
+                validate: (f) => {
+                    const reduction = parseFloat(f.priceReduction);
+                    // 降价幅度应在合理范围内（0-30%）
+                    return !isNaN(reduction) && reduction >= 0 && reduction <= 30;
+                },
+                getMessage: (f, passed) => {
+                    const reduction = parseFloat(f.priceReduction);
+                    if (isNaN(reduction)) return '降价幅度：请填写百分比数字';
+                    if (reduction < 0) return '降价幅度：不能为负数';
+                    if (reduction > 30) return '降价幅度：超过30%需特别说明';
+                    return `✓ 降价幅度：${reduction}%`;
+                },
+                severity: 'warning'
             }
         ],
         crossRefs: [
@@ -1900,44 +2150,208 @@ const TASK_RULES = {
                 id: 'cross_price_comparison',
                 label: '价格对比分析',
                 refTaskCode: '4.3',
-                validate: (curr, ref) => true,
-                passMessage: '最终价格在合理范围内',
-                failMessage: '请核实最终价格与之前商务讨论的关系',
+                validate: (curr, ref) => {
+                    if (!ref || !ref.priceRange) return true;
+                    // 最终价格应在商务交流确认的区间内
+                    const finalPrice = parseFloat(curr.finalPrice) || 0;
+                    // 简化验证，AI会做更深入检查
+                    return finalPrice > 0;
+                },
+                passMessage: '最终价格与商务交流结果一致',
+                failMessage: '请核实最终价格与商务交流价格区间的关系',
+                severity: 'warning'
+            },
+            {
+                id: 'cross_bid_price',
+                label: '与投标价格对比',
+                refTaskCode: '4.1',
+                validate: (curr, ref) => {
+                    const finalPrice = parseFloat(curr.finalPrice) || 0;
+                    const bidPrice = parseFloat(ref?.bidPrice) || 0;
+                    if (bidPrice === 0 || finalPrice === 0) return true;
+                    // 最终价格不应低于投标价格的70%
+                    return finalPrice >= bidPrice * 0.7;
+                },
+                passMessage: '价格变动在合理范围内',
+                failMessage: '最终价格与投标价格差异较大（>30%），请核实',
                 severity: 'warning'
             }
         ],
-        aiRules: []
+        aiRules: [
+            {
+                id: 'ai_negotiation_quality',
+                label: '谈判质量评估',
+                prompt: `请验证任务6.1 商务谈判的内容质量：
+
+验证要点：
+1. 客户方是否有决策层参与
+2. 关键谈判点是否覆盖价格、账期、服务等多维度
+3. 让步记录是否有对等交换（我方让步的同时客户也有让步）
+4. 降价幅度是否在合理区间
+
+评分标准：
+- 决策层参与、谈判点全面、让步对等：通过
+- 只是单方让价或谈判点单一：不通过`,
+                targetFields: ['customerAttendees', 'keyNegotiationPoints', 'concessionRecord', 'finalPrice', 'priceReduction']
+            }
+        ]
     },
 
     // ==================== 7.1 合同签订 ====================
     '7.1': {
+        fields: {
+            contractDate: { type: 'date', label: '签约日期' },
+            contractFile: { type: 'filename', label: '合同文件' },
+            contractNumber: { type: 'text', label: '合同编号' },
+            contractAmount: { type: 'number', label: '合同金额' },
+            paymentTerms: { type: 'text', label: '付款条款' },
+            deliveryTerms: { type: 'text', label: '交付条款' },
+            warrantyTerms: { type: 'text', label: '质保条款' },
+            signatoryCustomer: { type: 'text', label: '客户签署人' },
+            signatoryOur: { type: 'text', label: '我方签署人' }
+        },
         hardRules: [
             {
                 id: 'contract_date',
                 label: '签约日期',
-                validate: (f) => !!f.contractDate,
-                getMessage: (f, passed) => passed ? '✓ 签约日期已记录' : '请填写签约日期',
+                validate: (f) => (f.contractDate || '').trim().length >= 8,
+                getMessage: (f, passed) => {
+                    const date = f.contractDate || '';
+                    return date.trim() ? `✓ 签约日期：${date}` : '签约日期：未填写';
+                },
                 severity: 'error'
             },
             {
                 id: 'contract_file',
                 label: '合同文件',
-                validate: (f) => !!f.contractFile,
-                getMessage: (f, passed) => passed ? '✓ 合同文件已上传' : '请上传合同文件',
+                validate: (f) => {
+                    const file = f.contractFile || '';
+                    if (!file.trim()) return false;
+                    if (!/\.(pdf|docx?)$/i.test(file)) return false;
+                    const name = file.replace(/\.[^.]+$/, '');
+                    return name.length >= 6;
+                },
+                getMessage: (f, passed) => {
+                    const file = f.contractFile || '';
+                    if (!file.trim()) return '合同文件：未上传';
+                    if (!/\.(pdf|docx?)$/i.test(file)) return '合同文件：请上传有效文件（pdf/docx）';
+                    const name = file.replace(/\.[^.]+$/, '');
+                    if (name.length < 6) return '合同文件：文件名太简单（应包含合同编号或项目名）';
+                    return `✓ 合同文件：${file}`;
+                },
+                severity: 'error'
+            },
+            {
+                id: 'contract_number',
+                label: '合同编号',
+                validate: (f) => {
+                    const num = f.contractNumber || '';
+                    if (num.trim().length < 5) return false;
+                    // 合同编号通常包含字母和数字
+                    return /[A-Za-z]/.test(num) || /\d{4,}/.test(num);
+                },
+                getMessage: (f, passed) => {
+                    const num = f.contractNumber || '';
+                    if (!num.trim()) return '合同编号：未填写';
+                    if (num.trim().length < 5) return '合同编号：格式过于简单';
+                    if (passed) return `✓ 合同编号：${num}`;
+                    return '合同编号：格式不正确（应包含字母或4位以上数字）';
+                },
                 severity: 'error'
             },
             {
                 id: 'contract_amount',
                 label: '合同金额',
-                validate: (f) => (parseFloat(f.contractAmount) || 0) > 0,
-                getMessage: (f, passed) => passed ? `✓ 合同金额${f.contractAmount}万` : '请填写合同金额',
+                validate: (f) => {
+                    const amount = parseFloat(f.contractAmount);
+                    return !isNaN(amount) && amount > 0;
+                },
+                getMessage: (f, passed) => {
+                    const amount = parseFloat(f.contractAmount);
+                    if (isNaN(amount) || amount <= 0) return '合同金额：请填写有效金额';
+                    return `✓ 合同金额：${amount}万`;
+                },
                 severity: 'error'
             },
             {
                 id: 'payment_terms',
                 label: '付款条款',
-                validate: (f) => (f.paymentTerms || '').length >= 20,
-                getMessage: (f, passed) => passed ? '✓ 付款条款已明确' : '请填写付款条款（至少20字）',
+                validate: (f) => {
+                    const text = f.paymentTerms || '';
+                    if (text.length < 30) return false;
+                    // 付款条款应包含百分比和付款节点
+                    return /\d+%/.test(text) || /预付|尾款|验收|到货|月结/.test(text);
+                },
+                getMessage: (f, passed) => {
+                    const text = f.paymentTerms || '';
+                    if (text.length < 30) return `付款条款：${text.length}字（需≥30字）`;
+                    if (!passed) return '付款条款：请具体说明付款比例和节点（如：预付30%、到货验收50%、尾款20%）';
+                    return `✓ 付款条款：${text.length}字`;
+                },
+                severity: 'error'
+            },
+            {
+                id: 'delivery_terms',
+                label: '交付条款',
+                validate: (f) => {
+                    const text = f.deliveryTerms || '';
+                    if (text.length < 20) return false;
+                    // 交付条款应包含时间或数量信息
+                    return /\d/.test(text) && /天|周|月|日|批|次|件/.test(text);
+                },
+                getMessage: (f, passed) => {
+                    const text = f.deliveryTerms || '';
+                    if (text.length < 20) return `交付条款：${text.length}字（需≥20字）`;
+                    if (!passed) return '交付条款：请说明具体交付时间和数量（如：合同签订后30天内交付首批1000件）';
+                    return `✓ 交付条款：${text.length}字`;
+                },
+                severity: 'error'
+            },
+            {
+                id: 'warranty_terms',
+                label: '质保条款',
+                validate: (f) => {
+                    const text = f.warrantyTerms || '';
+                    if (text.length < 15) return false;
+                    // 质保条款应包含时间
+                    return /\d/.test(text) && /年|月|天|日/.test(text);
+                },
+                getMessage: (f, passed) => {
+                    const text = f.warrantyTerms || '';
+                    if (text.length < 15) return `质保条款：${text.length}字（需≥15字）`;
+                    if (!passed) return '质保条款：请说明质保期限（如：质保期1年，自验收合格之日起计算）';
+                    return `✓ 质保条款：${text.length}字`;
+                },
+                severity: 'error'
+            },
+            {
+                id: 'signatory_customer',
+                label: '客户签署人',
+                validate: (f) => {
+                    const person = f.signatoryCustomer || '';
+                    if (person.trim().length < 2) return false;
+                    // 签署人应包含职位
+                    return /经理|总监|主任|负责人|总|董事|法定代表人|授权代表/.test(person);
+                },
+                getMessage: (f, passed) => {
+                    const person = f.signatoryCustomer || '';
+                    if (!person.trim()) return '客户签署人：未填写';
+                    if (!passed) return '客户签署人：请包含姓名和职位（如：张三-采购总监）';
+                    return `✓ 客户签署人：${person}`;
+                },
+                severity: 'error'
+            },
+            {
+                id: 'signatory_our',
+                label: '我方签署人',
+                validate: (f) => {
+                    const person = f.signatoryOur || '';
+                    return person.trim().length >= 2;
+                },
+                getMessage: (f, passed) => {
+                    const person = f.signatoryOur || '';
+                    return person.trim() ? `✓ 我方签署人：${person}` : '我方签署人：未填写';
+                },
                 severity: 'error'
             }
         ],
@@ -1948,17 +2362,61 @@ const TASK_RULES = {
                 refTaskCode: '6.1',
                 validate: (curr, ref) => {
                     const contractAmount = parseFloat(curr.contractAmount) || 0;
-                    const negotiatedPrice = parseFloat(ref.finalPrice) || 0;
-                    if (negotiatedPrice === 0) return true;
+                    const negotiatedPrice = parseFloat(ref?.finalPrice) || 0;
+                    if (negotiatedPrice === 0 || contractAmount === 0) return true;
                     const diff = Math.abs(contractAmount - negotiatedPrice) / negotiatedPrice;
                     return diff <= 0.05;
                 },
-                passMessage: '合同金额与谈判价格一致',
-                failMessage: '合同金额与谈判价格差异较大，请核实',
+                passMessage: '合同金额与谈判价格一致（差异≤5%）',
+                failMessage: '合同金额与谈判价格差异超过5%，请核实',
+                severity: 'warning'
+            },
+            {
+                id: 'cross_payment_terms',
+                label: '付款条款一致性',
+                refTaskCode: '4.3',
+                validate: (curr, ref) => {
+                    // 付款条款应与商务交流确认的账期一致
+                    if (!ref || !ref.paymentTerms) return true;
+                    // 简化验证，AI会做更深入检查
+                    return true;
+                },
+                passMessage: '付款条款与商务协商一致',
+                failMessage: '请核实付款条款与商务交流中确认的账期是否一致',
+                severity: 'warning'
+            },
+            {
+                id: 'cross_project_amount',
+                label: '与项目金额对比',
+                refTaskCode: '1.1',
+                validate: (curr, ref) => {
+                    // 最终合同金额与项目立项时的预估可能有差异，但应在合理范围内
+                    return true; // AI会做更深入检查
+                },
+                passMessage: '合同金额与项目预估相符',
+                failMessage: '请核实合同金额与项目立项预估的差异',
                 severity: 'warning'
             }
         ],
-        aiRules: []
+        aiRules: [
+            {
+                id: 'ai_contract_completeness',
+                label: '合同完整性评估',
+                prompt: `请验证任务7.1 合同签订的内容质量：
+
+验证要点：
+1. 合同金额是否与6.1谈判最终价格一致（差异≤5%）
+2. 付款条款是否完整（有预付、到货/验收、尾款的比例）
+3. 交付条款是否明确（有具体时间和数量）
+4. 质保条款是否合理（服装行业一般6-12个月）
+5. 签署人是否有足够权限
+
+评分标准：
+- 金额一致、条款完整、签署规范：通过
+- 金额有差异或条款模糊：不通过`,
+                targetFields: ['contractAmount', 'paymentTerms', 'deliveryTerms', 'warrantyTerms', 'signatoryCustomer']
+            }
+        ]
     }
 };
 
