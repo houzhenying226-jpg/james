@@ -81,8 +81,9 @@ const EXCEL_COLUMNS = {
     attackPlan: 23     // X - 进攻计划得分
 };
 
-// 测试数据
+// 测试数据（每人2-3个项目）
 const TEST_DATA = [
+    // 张三 - 3个项目
     {
         name: '张三',
         project: 'XX集团服装采购项目',
@@ -91,9 +92,32 @@ const TEST_DATA = [
         stageDate: '2024-11-25',
         startStage: '接触',
         endStage: '深入',
-        tasks: [100, 100, 100, 100, 100, 100, 100, 100, 50, 100, 50, 0, 0, 0, 0, 0], // 1.1-7.1
+        tasks: [100, 100, 100, 100, 100, 100, 100, 100, 50, 100, 50, 0, 0, 0, 0, 0],
         attackPlan: 28
     },
+    {
+        name: '张三',
+        project: 'AA学校校服定制项目',
+        currentStage: '递进',
+        amount: 300,
+        stageDate: '2024-12-01',
+        startStage: '接触',
+        endStage: '递进',
+        tasks: [100, 100, 100, 100, 100, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        attackPlan: 22
+    },
+    {
+        name: '张三',
+        project: 'BB酒店制服项目',
+        currentStage: '接触',
+        amount: 150,
+        stageDate: '2024-12-10',
+        startStage: '接触',
+        endStage: '接触',
+        tasks: [100, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        attackPlan: 15
+    },
+    // 李四 - 2个项目
     {
         name: '李四',
         project: 'YY公司制服定制项目',
@@ -102,9 +126,21 @@ const TEST_DATA = [
         stageDate: '2024-11-05',
         startStage: '递进',
         endStage: '执行',
-        tasks: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 0, 0, 0], // 1.1-4.3全部100%
+        tasks: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 0, 0, 0],
         attackPlan: 26
     },
+    {
+        name: '李四',
+        project: 'CC工厂工装项目',
+        currentStage: '冲刺',
+        amount: 1200,
+        stageDate: '2024-11-20',
+        startStage: '深入',
+        endStage: '冲刺',
+        tasks: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 0, 0],
+        attackPlan: 28
+    },
+    // 王五 - 3个项目
     {
         name: '王五',
         project: 'ZZ企业工装批量采购',
@@ -113,7 +149,29 @@ const TEST_DATA = [
         stageDate: '2024-12-05',
         startStage: '接触',
         endStage: '签约',
-        tasks: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], // 全部100%
+        tasks: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100],
         attackPlan: 30
+    },
+    {
+        name: '王五',
+        project: 'DD医院医护服项目',
+        currentStage: '谈判',
+        amount: 600,
+        stageDate: '2024-11-15',
+        startStage: '递进',
+        endStage: '谈判',
+        tasks: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 0],
+        attackPlan: 27
+    },
+    {
+        name: '王五',
+        project: 'EE银行职业装项目',
+        currentStage: '执行',
+        amount: 450,
+        stageDate: '2024-11-28',
+        startStage: '接触',
+        endStage: '执行',
+        tasks: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 0, 0, 0],
+        attackPlan: 25
     }
 ];

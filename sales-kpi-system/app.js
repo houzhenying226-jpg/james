@@ -4,8 +4,9 @@
  */
 
 // 全局数据存储
-let salesData = [];
-let calculatedResults = [];
+let salesData = [];           // 原始项目数据
+let salespeople = [];         // 按销售员分组后的数据
+let projectResults = [];      // 所有项目的计算结果
 
 // ==================== 初始化 ====================
 
@@ -160,10 +161,16 @@ function parseExcelData(jsonData) {
         return;
     }
 
-    // 计算所有人的得分
-    calculatedResults = SalesCalculator.calculateAll(salesData);
+    // 计算所有项目得分并按销售员分组
+    const result = SalesCalculator.calculateAll(salesData);
+    salespeople = result.salespeople;
+    projectResults = result.projectResults;
 
-    showStatus('success', `成功导入 ${salesData.length} 条数据！点击"排行榜"查看结果。`);
+    // 统计销售员数量
+    const personCount = salespeople.length;
+    const projectCount = salesData.length;
+
+    showStatus('success', `成功导入 ${projectCount} 个项目，共 ${personCount} 名销售员！点击"排行榜"查看结果。`);
 
     // 更新界面
     updateRanking();
@@ -221,12 +228,12 @@ function showStatus(type, message) {
 // ==================== 排行榜 ====================
 
 /**
- * 更新排行榜显示
+ * 更新排行榜显示（按销售员汇总）
  */
 function updateRanking() {
     const container = document.getElementById('rankingContent');
 
-    if (calculatedResults.length === 0) {
+    if (salespeople.length === 0) {
         container.innerHTML = '<p class="empty-hint">请先导入数据</p>';
         return;
     }
@@ -237,23 +244,23 @@ function updateRanking() {
                 <tr>
                     <th>排名</th>
                     <th>姓名</th>
-                    <th>项目</th>
-                    <th>总分</th>
+                    <th>项目数</th>
+                    <th>平均分</th>
                     <th>等级</th>
                 </tr>
             </thead>
             <tbody>
     `;
 
-    calculatedResults.forEach(result => {
-        const rankClass = result.rank <= 3 ? `rank-${result.rank}` : '';
+    salespeople.forEach(person => {
+        const rankClass = person.rank <= 3 ? `rank-${person.rank}` : '';
         html += `
             <tr>
-                <td class="rank ${rankClass}">${getRankIcon(result.rank)}</td>
-                <td class="name-cell" onclick="showPersonDetailByName('${result.name}')">${result.name}</td>
-                <td>${result.project}</td>
-                <td class="score">${result.finalScore}</td>
-                <td class="grade" style="color: ${result.gradeColor}">${result.gradeIcon} ${result.grade}</td>
+                <td class="rank ${rankClass}">${getRankIcon(person.rank)}</td>
+                <td class="name-cell" onclick="showPersonDetailByName('${person.name}')">${person.name}</td>
+                <td>${person.projectCount}</td>
+                <td class="score">${person.avgScore}</td>
+                <td class="grade" style="color: ${person.gradeColor}">${person.gradeIcon} ${person.grade}</td>
             </tr>
         `;
     });
@@ -281,10 +288,10 @@ function updatePersonSelect() {
     const select = document.getElementById('personSelect');
     select.innerHTML = '<option value="">-- 请选择 --</option>';
 
-    calculatedResults.forEach(result => {
+    salespeople.forEach(person => {
         const option = document.createElement('option');
-        option.value = result.name;
-        option.textContent = `${result.name} - ${result.finalScore}分`;
+        option.value = person.name;
+        option.textContent = `${person.name} - ${person.projectCount}个项目 - 平均${person.avgScore}分`;
         select.appendChild(option);
     });
 }
@@ -305,7 +312,7 @@ function showPersonDetailByName(name) {
 }
 
 /**
- * 显示个人详情
+ * 显示个人详情（汇总视图）
  */
 function showPersonDetail() {
     const select = document.getElementById('personSelect');
@@ -317,230 +324,341 @@ function showPersonDetail() {
         return;
     }
 
-    const result = calculatedResults.find(r => r.name === name);
-    if (!result) {
+    const person = salespeople.find(p => p.name === name);
+    if (!person) {
         container.innerHTML = '<p class="empty-hint">未找到该销售员数据</p>';
         return;
     }
 
     let html = '';
 
-    // 得分概览
+    // 综合得分概览
     html += `
         <div class="score-overview">
             <div class="score-card final">
-                <div class="label">最终得分</div>
-                <div class="value">${result.finalScore}</div>
-                <div class="grade">${result.gradeIcon} ${result.grade}</div>
+                <div class="label">平均得分</div>
+                <div class="value">${person.avgScore}</div>
+                <div class="grade">${person.gradeIcon} ${person.grade}</div>
             </div>
             <div class="score-card">
-                <div class="label">基础分</div>
-                <div class="value">${result.baseScore}</div>
+                <div class="label">项目总数</div>
+                <div class="value">${person.projectCount}</div>
             </div>
             <div class="score-card">
-                <div class="label">难度系数</div>
-                <div class="value">×${result.difficultyCoef.value}</div>
+                <div class="label">最高分</div>
+                <div class="value">${person.highestProject.finalScore}</div>
+                <div class="grade" style="font-size: 0.8rem">${person.highestProject.project.substring(0, 10)}...</div>
             </div>
             <div class="score-card">
-                <div class="label">停留系数</div>
-                <div class="value">×${result.stayCoef.value}</div>
-            </div>
-            <div class="score-card">
-                <div class="label">推进系数</div>
-                <div class="value">×${result.progressCoef.value}</div>
+                <div class="label">最低分</div>
+                <div class="value">${person.lowestProject.finalScore}</div>
+                <div class="grade" style="font-size: 0.8rem">${person.lowestProject.project.substring(0, 10)}...</div>
             </div>
         </div>
     `;
 
-    // 基础分明细
+    // 平均得分明细
     html += `
         <div class="detail-section">
-            <h3>基础分明细（满分100分）</h3>
+            <h3>平均得分明细（基于${person.projectCount}个项目）</h3>
             <div class="base-score-grid">
                 <div class="base-score-item">
-                    <div class="item-label">子活动得分</div>
-                    <div class="item-value">${result.subActivityScore}</div>
+                    <div class="item-label">平均子活动得分</div>
+                    <div class="item-value">${person.avgSubActivity}</div>
                     <div class="item-max">满分 40 分</div>
                 </div>
                 <div class="base-score-item">
-                    <div class="item-label">进攻计划得分</div>
-                    <div class="item-value">${result.attackPlan}</div>
+                    <div class="item-label">平均进攻计划得分</div>
+                    <div class="item-value">${person.avgAttackPlan}</div>
                     <div class="item-max">满分 30 分</div>
                 </div>
                 <div class="base-score-item">
-                    <div class="item-label">影响效果得分</div>
-                    <div class="item-value">${result.impactScore}</div>
-                    <div class="item-max">满分 20 分（推进${result.progressStages}阶段）</div>
+                    <div class="item-label">平均影响效果得分</div>
+                    <div class="item-value">${person.avgImpact}</div>
+                    <div class="item-max">满分 20 分</div>
                 </div>
                 <div class="base-score-item">
-                    <div class="item-label">流程合规得分</div>
-                    <div class="item-value">${result.complianceScore}</div>
-                    <div class="item-max">满分 10 分（完成${result.completedTasks}/16任务）</div>
+                    <div class="item-label">平均流程合规得分</div>
+                    <div class="item-value">${person.avgCompliance}</div>
+                    <div class="item-max">满分 10 分</div>
                 </div>
             </div>
         </div>
     `;
 
-    // 系数分析
+    // 项目列表
     html += `
         <div class="detail-section">
-            <h3>系数影响分析</h3>
-            <div class="coefficients-grid">
-                <div class="coefficient-item">
-                    <div class="coef-header">
-                        <span class="coef-name">难度系数</span>
-                        <span class="coef-value">×${result.difficultyCoef.value}</span>
-                    </div>
-                    <div class="coef-reason">${result.difficultyCoef.reason}</div>
-                </div>
-                <div class="coefficient-item">
-                    <div class="coef-header">
-                        <span class="coef-name">停留系数</span>
-                        <span class="coef-value">×${result.stayCoef.value}</span>
-                    </div>
-                    <div class="coef-reason">${result.stayCoef.reason}</div>
-                </div>
-                <div class="coefficient-item">
-                    <div class="coef-header">
-                        <span class="coef-name">推进系数</span>
-                        <span class="coef-value">×${result.progressCoef.value}</span>
-                    </div>
-                    <div class="coef-reason">${result.progressCoef.reason}</div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // 任务完成情况
-    html += `
-        <div class="detail-section">
-            <h3>16项任务完成情况</h3>
-            <table class="tasks-table">
+            <h3>项目明细列表</h3>
+            <table class="ranking-table">
                 <thead>
                     <tr>
-                        <th>任务编号</th>
-                        <th>任务名称</th>
-                        <th>阶段</th>
-                        <th>权重</th>
-                        <th>完成度</th>
-                        <th>得分</th>
+                        <th>项目名称</th>
+                        <th>金额(万)</th>
+                        <th>当前阶段</th>
+                        <th>推进情况</th>
+                        <th>基础分</th>
+                        <th>最终得分</th>
+                        <th>等级</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
 
-    result.taskScores.forEach(task => {
-        const completionClass = task.completion === 100 ? 'completion-100' :
-                               task.completion === 50 ? 'completion-50' : 'completion-0';
+    // 按得分降序显示项目
+    const sortedProjects = [...person.projects].sort((a, b) => b.finalScore - a.finalScore);
+    sortedProjects.forEach((project, index) => {
+        const isHighest = index === 0;
+        const isLowest = index === sortedProjects.length - 1 && sortedProjects.length > 1;
+        const rowClass = isHighest ? 'highest-row' : (isLowest ? 'lowest-row' : '');
+
         html += `
-            <tr>
-                <td>${task.id}</td>
-                <td>${task.name}</td>
-                <td>${task.stage}</td>
-                <td>${task.weight}分</td>
-                <td class="${completionClass}">${task.completion}%</td>
-                <td class="score-cell">${task.score}分</td>
+            <tr class="${rowClass}" onclick="showProjectDetail('${person.name}', ${index})" style="cursor: pointer">
+                <td>
+                    ${isHighest ? '🔥 ' : ''}${isLowest ? '⚠️ ' : ''}
+                    ${project.project}
+                </td>
+                <td>${project.amount}</td>
+                <td>${project.currentStage}</td>
+                <td>${project.startStage} → ${project.endStage}</td>
+                <td>${project.baseScore}</td>
+                <td class="score">${project.finalScore}</td>
+                <td class="grade" style="color: ${project.gradeColor}">${project.gradeIcon}</td>
             </tr>
         `;
     });
 
-    html += '</tbody></table></div>';
-
-    // 计算过程
-    const process = SalesCalculator.getCalculationProcess(result);
-    html += `
-        <div class="detail-section">
-            <h3>得分计算过程</h3>
-            <div class="calculation-process">
-    `;
-
-    process.forEach((step, index) => {
-        const isLast = index === process.length - 1;
-        html += `
-            <div class="step ${isLast ? 'final-step' : ''}">
-                <strong>${step.label}：</strong> ${step.formula} = <strong>${step.value}</strong>
-            </div>
-        `;
-    });
-
-    html += '</div></div>';
+    html += '</tbody></table>';
+    html += '<p style="color: #666; font-size: 0.9rem; margin-top: 10px;">💡 点击项目行查看详细计算过程</p>';
+    html += '</div>';
 
     container.innerHTML = html;
+}
+
+/**
+ * 显示单个项目详情（弹窗或展开）
+ */
+function showProjectDetail(personName, projectIndex) {
+    const person = salespeople.find(p => p.name === personName);
+    if (!person) return;
+
+    const sortedProjects = [...person.projects].sort((a, b) => b.finalScore - a.finalScore);
+    const project = sortedProjects[projectIndex];
+    if (!project) return;
+
+    // 创建或获取详情模态框
+    let modal = document.getElementById('projectDetailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'projectDetailModal';
+        modal.className = 'modal-overlay';
+        document.body.appendChild(modal);
+    }
+
+    let html = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>${project.project}</h2>
+                <button class="modal-close" onclick="closeProjectModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="score-overview" style="margin-bottom: 20px;">
+                    <div class="score-card final">
+                        <div class="label">最终得分</div>
+                        <div class="value">${project.finalScore}</div>
+                        <div class="grade">${project.gradeIcon} ${project.grade}</div>
+                    </div>
+                    <div class="score-card">
+                        <div class="label">基础分</div>
+                        <div class="value">${project.baseScore}</div>
+                    </div>
+                    <div class="score-card">
+                        <div class="label">难度系数</div>
+                        <div class="value">×${project.difficultyCoef.value}</div>
+                    </div>
+                    <div class="score-card">
+                        <div class="label">停留系数</div>
+                        <div class="value">×${project.stayCoef.value}</div>
+                    </div>
+                    <div class="score-card">
+                        <div class="label">推进系数</div>
+                        <div class="value">×${project.progressCoef.value}</div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>基础分明细</h3>
+                    <div class="base-score-grid">
+                        <div class="base-score-item">
+                            <div class="item-label">子活动得分</div>
+                            <div class="item-value">${project.subActivityScore}</div>
+                            <div class="item-max">满分 40 分</div>
+                        </div>
+                        <div class="base-score-item">
+                            <div class="item-label">进攻计划得分</div>
+                            <div class="item-value">${project.attackPlan}</div>
+                            <div class="item-max">满分 30 分</div>
+                        </div>
+                        <div class="base-score-item">
+                            <div class="item-label">影响效果得分</div>
+                            <div class="item-value">${project.impactScore}</div>
+                            <div class="item-max">推进${project.progressStages}阶段</div>
+                        </div>
+                        <div class="base-score-item">
+                            <div class="item-label">流程合规得分</div>
+                            <div class="item-value">${project.complianceScore}</div>
+                            <div class="item-max">完成${project.completedTasks}/16任务</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>系数说明</h3>
+                    <div class="coefficients-grid">
+                        <div class="coefficient-item">
+                            <div class="coef-header">
+                                <span class="coef-name">难度系数</span>
+                                <span class="coef-value">×${project.difficultyCoef.value}</span>
+                            </div>
+                            <div class="coef-reason">${project.difficultyCoef.reason}</div>
+                        </div>
+                        <div class="coefficient-item">
+                            <div class="coef-header">
+                                <span class="coef-name">停留系数</span>
+                                <span class="coef-value">×${project.stayCoef.value}</span>
+                            </div>
+                            <div class="coef-reason">${project.stayCoef.reason}</div>
+                        </div>
+                        <div class="coefficient-item">
+                            <div class="coef-header">
+                                <span class="coef-name">推进系数</span>
+                                <span class="coef-value">×${project.progressCoef.value}</span>
+                            </div>
+                            <div class="coef-reason">${project.progressCoef.reason}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>计算过程</h3>
+                    <div class="calculation-process">
+                        <div class="step">
+                            <strong>基础分：</strong> ${project.subActivityScore} + ${project.attackPlan} + ${project.impactScore} + ${project.complianceScore} = <strong>${project.baseScore}分</strong>
+                        </div>
+                        <div class="step final-step">
+                            <strong>最终得分：</strong> ${project.baseScore} × ${project.difficultyCoef.value} × ${project.stayCoef.value} × ${project.progressCoef.value} = <strong>${project.finalScore}分</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    modal.innerHTML = html;
+    modal.style.display = 'flex';
+}
+
+/**
+ * 关闭项目详情模态框
+ */
+function closeProjectModal() {
+    const modal = document.getElementById('projectDetailModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 // ==================== Excel导出 ====================
 
 /**
- * 导出Excel
+ * 导出Excel（包含汇总表和明细表）
  */
 function exportToExcel() {
-    if (calculatedResults.length === 0) {
+    if (salespeople.length === 0) {
         alert('没有数据可导出，请先导入数据');
         return;
     }
 
-    // 准备导出数据
-    const exportData = [];
+    const wb = XLSX.utils.book_new();
 
-    // 标题行
-    exportData.push([
-        '排名', '姓名', '项目名称', '项目金额(万)', '当前阶段',
-        '子活动得分', '进攻计划得分', '影响效果得分', '流程合规得分', '基础分',
+    // ========== Sheet1: 销售员汇总表 ==========
+    const summaryData = [];
+    summaryData.push([
+        '排名', '姓名', '项目数', '平均分', '等级',
+        '平均子活动', '平均进攻计划', '平均影响效果', '平均流程合规', '平均基础分',
+        '最高分项目', '最高分', '最低分项目', '最低分'
+    ]);
+
+    salespeople.forEach(person => {
+        summaryData.push([
+            person.rank,
+            person.name,
+            person.projectCount,
+            person.avgScore,
+            person.grade,
+            person.avgSubActivity,
+            person.avgAttackPlan,
+            person.avgImpact,
+            person.avgCompliance,
+            person.avgBaseScore,
+            person.highestProject.project,
+            person.highestProject.finalScore,
+            person.lowestProject.project,
+            person.lowestProject.finalScore
+        ]);
+    });
+
+    const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+    ws1['!cols'] = [
+        { wch: 6 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 10 },
+        { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
+        { wch: 20 }, { wch: 10 }, { wch: 20 }, { wch: 10 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws1, '销售员汇总');
+
+    // ========== Sheet2: 项目明细表 ==========
+    const detailData = [];
+    detailData.push([
+        '销售员', '项目名称', '项目金额(万)', '当前阶段', '推进情况',
+        '子活动得分', '进攻计划', '影响效果', '流程合规', '基础分',
         '难度系数', '停留系数', '推进系数',
         '最终得分', '等级'
     ]);
 
-    // 数据行
-    calculatedResults.forEach(result => {
-        exportData.push([
-            result.rank,
-            result.name,
-            result.project,
-            result.amount,
-            result.currentStage,
-            result.subActivityScore,
-            result.attackPlan,
-            result.impactScore,
-            result.complianceScore,
-            result.baseScore,
-            result.difficultyCoef.value,
-            result.stayCoef.value,
-            result.progressCoef.value,
-            result.finalScore,
-            result.grade
-        ]);
+    salespeople.forEach(person => {
+        person.projects.forEach(project => {
+            detailData.push([
+                person.name,
+                project.project,
+                project.amount,
+                project.currentStage,
+                `${project.startStage}→${project.endStage}`,
+                project.subActivityScore,
+                project.attackPlan,
+                project.impactScore,
+                project.complianceScore,
+                project.baseScore,
+                project.difficultyCoef.value,
+                project.stayCoef.value,
+                project.progressCoef.value,
+                project.finalScore,
+                project.grade
+            ]);
+        });
     });
 
-    // 创建工作簿
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_array ? XLSX.utils.aoa_to_sheet(exportData) : XLSX.utils.aoa_to_sheet(exportData);
-
-    // 设置列宽
-    ws['!cols'] = [
-        { wch: 6 },   // 排名
-        { wch: 10 },  // 姓名
-        { wch: 25 },  // 项目名称
-        { wch: 12 },  // 项目金额
-        { wch: 10 },  // 当前阶段
-        { wch: 12 },  // 子活动得分
-        { wch: 12 },  // 进攻计划
-        { wch: 12 },  // 影响效果
-        { wch: 12 },  // 流程合规
-        { wch: 10 },  // 基础分
-        { wch: 10 },  // 难度系数
-        { wch: 10 },  // 停留系数
-        { wch: 10 },  // 推进系数
-        { wch: 10 },  // 最终得分
-        { wch: 10 }   // 等级
+    const ws2 = XLSX.utils.aoa_to_sheet(detailData);
+    ws2['!cols'] = [
+        { wch: 10 }, { wch: 25 }, { wch: 12 }, { wch: 10 }, { wch: 14 },
+        { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+        { wch: 10 }, { wch: 10 }, { wch: 10 },
+        { wch: 10 }, { wch: 10 }
     ];
+    XLSX.utils.book_append_sheet(wb, ws2, '项目明细');
 
-    XLSX.utils.book_append_sheet(wb, ws, '月度考核结果');
-
-    // 生成文件名
+    // 生成文件名并下载
     const now = new Date();
     const fileName = `销售考核结果_${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}.xlsx`;
-
-    // 下载
     XLSX.writeFile(wb, fileName);
 }
 
@@ -596,9 +714,16 @@ function downloadTemplate() {
  */
 function loadTestData() {
     salesData = JSON.parse(JSON.stringify(TEST_DATA)); // 深拷贝
-    calculatedResults = SalesCalculator.calculateAll(salesData);
 
-    showStatus('success', `已加载 ${salesData.length} 条测试数据！点击"排行榜"查看结果。`);
+    // 计算并分组
+    const result = SalesCalculator.calculateAll(salesData);
+    salespeople = result.salespeople;
+    projectResults = result.projectResults;
+
+    const personCount = salespeople.length;
+    const projectCount = salesData.length;
+
+    showStatus('success', `已加载 ${projectCount} 个项目，共 ${personCount} 名销售员！点击"排行榜"查看结果。`);
 
     updateRanking();
     updatePersonSelect();

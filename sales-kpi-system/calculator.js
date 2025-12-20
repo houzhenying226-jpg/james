@@ -215,22 +215,91 @@ class SalesCalculator {
     }
 
     /**
-     * 批量计算并排序
-     * @param {Array} dataList - 销售员数据列表
-     * @returns {Array} 排序后的结果列表
+     * 批量计算所有项目（不分组）
+     * @param {Array} dataList - 项目数据列表
+     * @returns {Array} 计算结果列表
+     */
+    static calculateAllProjects(dataList) {
+        return dataList.map(data => this.calculate(data));
+    }
+
+    /**
+     * 按销售员分组计算并排序
+     * @param {Array} dataList - 项目数据列表
+     * @returns {Object} { salespeople: 按平均分排序的销售员列表, projectResults: 所有项目计算结果 }
      */
     static calculateAll(dataList) {
-        const results = dataList.map(data => this.calculate(data));
+        // 1. 计算所有项目的得分
+        const projectResults = dataList.map(data => this.calculate(data));
 
-        // 按最终得分降序排序
-        results.sort((a, b) => b.finalScore - a.finalScore);
-
-        // 添加排名
-        results.forEach((result, index) => {
-            result.rank = index + 1;
+        // 2. 按销售员姓名分组
+        const groupedByName = {};
+        projectResults.forEach(result => {
+            if (!groupedByName[result.name]) {
+                groupedByName[result.name] = [];
+            }
+            groupedByName[result.name].push(result);
         });
 
-        return results;
+        // 3. 计算每个销售员的汇总数据
+        const salespeople = Object.keys(groupedByName).map(name => {
+            const projects = groupedByName[name];
+            const projectCount = projects.length;
+
+            // 计算平均分
+            const totalScore = projects.reduce((sum, p) => sum + p.finalScore, 0);
+            const avgScore = Math.round((totalScore / projectCount) * 100) / 100;
+
+            // 找出最高分和最低分项目
+            const sortedProjects = [...projects].sort((a, b) => b.finalScore - a.finalScore);
+            const highestProject = sortedProjects[0];
+            const lowestProject = sortedProjects[sortedProjects.length - 1];
+
+            // 计算平均基础分等
+            const avgBaseScore = Math.round(projects.reduce((sum, p) => sum + p.baseScore, 0) / projectCount * 100) / 100;
+            const avgSubActivity = Math.round(projects.reduce((sum, p) => sum + p.subActivityScore, 0) / projectCount * 100) / 100;
+            const avgAttackPlan = Math.round(projects.reduce((sum, p) => sum + p.attackPlan, 0) / projectCount * 100) / 100;
+            const avgImpact = Math.round(projects.reduce((sum, p) => sum + p.impactScore, 0) / projectCount * 100) / 100;
+            const avgCompliance = Math.round(projects.reduce((sum, p) => sum + p.complianceScore, 0) / projectCount * 100) / 100;
+
+            // 评定等级（基于平均分）
+            let grade = '', gradeIcon = '', gradeColor = '';
+            for (const rule of GRADE_RULES) {
+                if (avgScore >= rule.min) {
+                    grade = rule.grade;
+                    gradeIcon = rule.icon;
+                    gradeColor = rule.color;
+                    break;
+                }
+            }
+
+            return {
+                name,
+                projectCount,
+                avgScore,
+                avgBaseScore,
+                avgSubActivity,
+                avgAttackPlan,
+                avgImpact,
+                avgCompliance,
+                grade,
+                gradeIcon,
+                gradeColor,
+                projects,
+                highestProject,
+                lowestProject
+            };
+        });
+
+        // 4. 按平均分降序排序
+        salespeople.sort((a, b) => b.avgScore - a.avgScore);
+
+        // 5. 添加排名
+        salespeople.forEach((person, index) => {
+            person.rank = index + 1;
+        });
+
+        return { salespeople, projectResults };
     }
 
     /**
