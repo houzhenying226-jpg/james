@@ -468,13 +468,18 @@ function showUploadVersion(taskCode) {
 
     const task = DataStorage.getTask(`${currentProjectId}-${taskCode}`);
     const nextVersion = task ? `V${task.versions.length + 1}.0` : 'V1.0';
+    const today = new Date().toISOString().split('T')[0];
 
     let html = `
         <div class="current-status">
-            <h4>📊 当前状态</h4>
-            <p>任务：${config.code} ${config.name}</p>
-            <p>权重：${config.weight}分</p>
-            <p>新版本号：<strong>${nextVersion}</strong></p>
+            <div class="version-header-info">
+                <div>
+                    <h4>${config.code} ${config.name}</h4>
+                    <p>权重：${config.weight}分</p>
+                </div>
+                <div class="version-badge-large">${nextVersion}</div>
+            </div>
+            <p class="version-date">📅 ${today}</p>
         </div>
 
         <form id="versionForm" onsubmit="submitVersion(event)">
@@ -488,8 +493,28 @@ function showUploadVersion(taskCode) {
 
     html += `
             <div class="validation-preview" id="validationPreview">
-                <h4>验证结果</h4>
-                <div id="validationItems"></div>
+                <div class="validation-section">
+                    <h4>📋 基础验证</h4>
+                    <div id="hardRulesValidation"></div>
+                </div>
+
+                <div class="validation-section">
+                    <h4>🔗 关联验证</h4>
+                    <div id="crossRefValidation"></div>
+                </div>
+
+                <div class="validation-section">
+                    <h4>🤖 AI智能验证</h4>
+                    <div id="aiValidation">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="runAIValidation()">
+                            运行AI验证
+                        </button>
+                        <div id="aiValidationResult"></div>
+                    </div>
+                </div>
+
+                <div class="validation-overall" id="validationOverall"></div>
+
                 <div class="score-preview">
                     <span class="score-preview-label">预计得分：</span>
                     <span class="score-preview-value" id="previewScore">0 / ${config.weight}</span>
@@ -591,67 +616,161 @@ function updateValidationPreview() {
     const form = document.getElementById('versionForm');
     const formData = getFormData(form, config);
 
-    // 使用详细验证函数
-    const validationResult = getDetailedValidation(currentTaskCode, formData);
+    // 1. 硬规则验证
+    const hardRulesResult = ValidationEngine.validateHardRules(currentTaskCode, formData);
+    renderHardRulesValidation(hardRulesResult);
 
-    // 渲染每个检查项
-    const validationItems = document.getElementById('validationItems');
-    let itemsHtml = '';
+    // 2. 关联验证
+    const crossRefResult = ValidationEngine.validateCrossReference(currentTaskCode, formData, currentProjectId);
+    renderCrossRefValidation(crossRefResult);
 
-    if (validationResult.checks.length > 0) {
-        validationResult.checks.forEach(check => {
-            const icon = check.passed ? '✅' : '❌';
-            const statusClass = check.passed ? 'validation-pass' : 'validation-fail';
-            const hint = check.hint ? ` <span class="validation-hint">(${check.hint})</span>` : '';
-            itemsHtml += `
-                <div class="validation-item ${statusClass}">
-                    <span class="validation-icon">${icon}</span>
-                    <span>${check.label}${hint}</span>
-                </div>
-            `;
-        });
+    // 3. 更新总体结果
+    updateOverallValidation(hardRulesResult, crossRefResult, config);
+}
 
-        // 显示汇总
-        const passedCount = validationResult.checks.filter(c => c.passed).length;
-        const totalCount = validationResult.checks.length;
-        if (validationResult.allPassed) {
-            itemsHtml += `
-                <div class="validation-summary validation-pass">
-                    ✅ 所有检查项已通过 (${passedCount}/${totalCount})
-                </div>
-            `;
-        } else {
-            const missingItems = validationResult.checks.filter(c => !c.passed).map(c => c.label);
-            itemsHtml += `
-                <div class="validation-summary validation-fail">
-                    ❌ 缺少以下项目：${missingItems.join('、')}
-                </div>
-            `;
-        }
+/**
+ * 渲染硬规则验证结果
+ */
+function renderHardRulesValidation(result) {
+    const container = document.getElementById('hardRulesValidation');
+    if (!container) return;
+
+    if (result.checks.length === 0) {
+        container.innerHTML = '<p class="empty-hint">暂无验证规则</p>';
+        return;
+    }
+
+    let html = '<ul class="validation-list">';
+    result.checks.forEach(check => {
+        const cls = check.passed ? 'pass' : (check.severity === 'warning' ? 'warning' : 'fail');
+        const icon = check.passed ? '✅' : (check.severity === 'warning' ? '⚠️' : '❌');
+        const message = typeof check.message === 'function' ? check.message : check.message;
+        html += `<li class="${cls}">${icon} ${check.label}：${message}</li>`;
+    });
+    html += '</ul>';
+
+    container.innerHTML = html;
+}
+
+/**
+ * 渲染关联验证结果
+ */
+function renderCrossRefValidation(result) {
+    const container = document.getElementById('crossRefValidation');
+    if (!container) return;
+
+    if (result.checks.length === 0) {
+        container.innerHTML = '<p class="empty-hint">无关联任务需要验证</p>';
+        return;
+    }
+
+    let html = '<ul class="validation-list">';
+    result.checks.forEach(check => {
+        const cls = check.passed ? 'pass' : 'warning';
+        const icon = check.passed ? '✅' : '⚠️';
+        html += `<li class="${cls}">${icon} ${check.label}：${check.message}</li>`;
+    });
+    html += '</ul>';
+
+    container.innerHTML = html;
+}
+
+/**
+ * 更新总体验证结果
+ */
+function updateOverallValidation(hardRulesResult, crossRefResult, config) {
+    const overallEl = document.getElementById('validationOverall');
+    const scoreEl = document.getElementById('previewScore');
+
+    const hardPassed = hardRulesResult.passed;
+    const hardErrors = hardRulesResult.checks.filter(c => !c.passed && c.severity !== 'warning');
+    const hardWarnings = hardRulesResult.checks.filter(c => !c.passed && c.severity === 'warning');
+    const crossWarnings = crossRefResult.checks.filter(c => !c.passed);
+
+    // 计算得分
+    const rate = hardPassed ? config.validation.passRate : config.validation.failRate;
+    const score = Math.round(config.weight * (rate / 100) * 100) / 100;
+    scoreEl.textContent = `${score} / ${config.weight} (${rate}%)`;
+
+    // 渲染总体结果
+    let overallHtml = '';
+    if (hardErrors.length === 0 && hardWarnings.length === 0 && crossWarnings.length === 0) {
+        overallHtml = `
+            <div class="validation-overall-result pass">
+                ✅ 验证通过
+            </div>
+        `;
+    } else if (hardErrors.length === 0) {
+        const warnings = [...hardWarnings, ...crossWarnings].map(c => c.label);
+        overallHtml = `
+            <div class="validation-overall-result warning">
+                ⚠️ 建议复核（${warnings.join('、')}）
+            </div>
+        `;
     } else {
-        // 回退到旧逻辑
-        let isValid = false;
-        try {
-            isValid = config.validation.check(formData);
-        } catch (e) {
-            isValid = false;
-        }
-        itemsHtml = `
-            <div class="validation-item">
-                <span class="validation-icon ${isValid ? 'validation-pass' : 'validation-fail'}">
-                    ${isValid ? '✅' : '❌'}
-                </span>
-                <span>${config.validation.description}</span>
+        const missing = hardErrors.map(c => c.label);
+        overallHtml = `
+            <div class="validation-overall-result fail">
+                ❌ 不达标（缺少：${missing.join('、')}）
             </div>
         `;
     }
 
-    validationItems.innerHTML = itemsHtml;
+    overallEl.innerHTML = overallHtml;
+}
 
-    // 更新预计得分
-    const rate = validationResult.allPassed ? config.validation.passRate : config.validation.failRate;
-    const score = Math.round(config.weight * (rate / 100) * 100) / 100;
-    document.getElementById('previewScore').textContent = `${score} / ${config.weight} (${rate}%)`;
+/**
+ * 运行AI验证
+ */
+async function runAIValidation() {
+    const resultEl = document.getElementById('aiValidationResult');
+    const config = getTaskConfig(currentTaskCode);
+    if (!config) return;
+
+    // 检查API是否可用
+    if (!AIValidator.isEnabled()) {
+        resultEl.innerHTML = `
+            <p class="validation-hint" style="margin-top: 10px;">
+                ⚠️ 未配置API Key，请在设置中配置Gemini API Key
+            </p>
+        `;
+        return;
+    }
+
+    resultEl.innerHTML = '<p style="margin-top: 10px;">🔄 正在运行AI验证...</p>';
+
+    const form = document.getElementById('versionForm');
+    const formData = getFormData(form, config);
+
+    try {
+        const result = await ValidationEngine.validateWithAI(currentTaskCode, formData);
+
+        if (result.checks.length === 0) {
+            resultEl.innerHTML = '<p class="empty-hint" style="margin-top: 10px;">该任务暂无AI验证规则</p>';
+            return;
+        }
+
+        let html = '<ul class="validation-list" style="margin-top: 10px;">';
+        result.checks.forEach(check => {
+            const cls = check.passed ? 'pass' : 'warning';
+            const icon = check.passed ? '✅' : '💡';
+            html += `<li class="${cls}">${icon} ${check.label}：${check.message}</li>`;
+            if (check.suggestions && check.suggestions.length > 0) {
+                check.suggestions.forEach(s => {
+                    html += `<li class="warning" style="padding-left: 30px;">💡 建议：${s}</li>`;
+                });
+            }
+        });
+        html += '</ul>';
+
+        resultEl.innerHTML = html;
+    } catch (error) {
+        resultEl.innerHTML = `
+            <p class="validation-hint" style="margin-top: 10px; color: #c62828;">
+                ❌ AI验证失败：${error.message}
+            </p>
+        `;
+    }
 }
 
 /**
