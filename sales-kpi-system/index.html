@@ -4,98 +4,305 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>销售考核自动化系统 - 北京北方努派服装公司</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="new-styles.css">
 </head>
 <body>
-    <div class="container">
-        <!-- 顶部导航 -->
-        <header class="header">
+    <div class="app-container">
+        <!-- 顶部标题 -->
+        <header class="app-header">
             <h1>销售考核自动化系统</h1>
             <p class="subtitle">北京北方努派服装公司</p>
         </header>
 
-        <!-- 导航标签 -->
-        <nav class="nav-tabs">
-            <button class="tab-btn active" data-tab="import">数据导入</button>
-            <button class="tab-btn" data-tab="ranking">排行榜</button>
-            <button class="tab-btn" data-tab="detail">个人详情</button>
+        <!-- 三视图导航 -->
+        <nav class="main-nav">
+            <button class="nav-btn active" data-view="projects">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">项目视图</span>
+            </button>
+            <button class="nav-btn" data-view="tasks">
+                <span class="nav-icon">📝</span>
+                <span class="nav-text">任务视图</span>
+            </button>
+            <button class="nav-btn" data-view="assessment">
+                <span class="nav-icon">🏆</span>
+                <span class="nav-text">考核视图</span>
+            </button>
         </nav>
 
-        <!-- 数据导入页面 -->
-        <section id="import" class="tab-content active">
-            <div class="card">
-                <h2>上传Excel文件</h2>
-                <div class="upload-area" id="uploadArea">
-                    <div class="upload-icon">📁</div>
-                    <p>点击或拖拽文件到此处</p>
-                    <p class="hint">支持 .xlsx, .xls 格式</p>
-                    <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+        <!-- 视图内容 -->
+        <main class="main-content">
+            <!-- ==================== 项目视图 ==================== -->
+            <section id="projects-view" class="view active">
+                <div class="view-header">
+                    <h2>我的项目</h2>
+                    <button class="btn btn-primary" onclick="showAddProjectModal()">
+                        ➕ 新建项目
+                    </button>
                 </div>
-                <div id="uploadStatus" class="upload-status"></div>
-            </div>
 
-            <div class="card">
-                <h2>Excel格式说明</h2>
-                <div class="format-info">
-                    <table class="format-table">
-                        <thead>
-                            <tr>
-                                <th>列号</th>
-                                <th>内容</th>
-                                <th>示例</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td>A</td><td>销售员姓名</td><td>张三</td></tr>
-                            <tr><td>B</td><td>项目名称</td><td>XX公司采购项目</td></tr>
-                            <tr><td>C</td><td>当前阶段</td><td>深入</td></tr>
-                            <tr><td>D</td><td>项目金额（万元）</td><td>500</td></tr>
-                            <tr><td>E</td><td>进入当前阶段日期</td><td>2024-11-25</td></tr>
-                            <tr><td>F</td><td>本月初阶段</td><td>接触</td></tr>
-                            <tr><td>G</td><td>本月末阶段</td><td>深入</td></tr>
-                            <tr><td>H-W</td><td>任务1.1-7.1完成度</td><td>100%/50%/0%</td></tr>
-                            <tr><td>X</td><td>进攻计划得分</td><td>28</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <button class="btn btn-secondary" onclick="downloadTemplate()">下载模板</button>
-                <button class="btn btn-secondary" onclick="loadTestData()">加载测试数据</button>
-            </div>
-        </section>
-
-        <!-- 排行榜页面 -->
-        <section id="ranking" class="tab-content">
-            <div class="card">
-                <div class="ranking-header">
-                    <h2>月度销售排行榜</h2>
-                    <button class="btn btn-primary" onclick="exportToExcel()">导出Excel</button>
-                </div>
-                <div id="rankingContent">
-                    <p class="empty-hint">请先导入数据</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- 个人详情页 -->
-        <section id="detail" class="tab-content">
-            <div class="card">
-                <h2>个人考核详情</h2>
-                <div class="person-selector">
-                    <label>选择销售员：</label>
-                    <select id="personSelect" onchange="showPersonDetail()">
-                        <option value="">-- 请选择 --</option>
+                <div class="filter-bar">
+                    <label>销售员：</label>
+                    <select id="projectFilterSalesperson" onchange="filterProjects()">
+                        <option value="">全部</option>
+                    </select>
+                    <label>阶段：</label>
+                    <select id="projectFilterStage" onchange="filterProjects()">
+                        <option value="">全部</option>
+                        <option value="接触">接触</option>
+                        <option value="递进">递进</option>
+                        <option value="深入">深入</option>
+                        <option value="执行">执行</option>
+                        <option value="冲刺">冲刺</option>
+                        <option value="谈判">谈判</option>
+                        <option value="签约">签约</option>
                     </select>
                 </div>
-                <div id="detailContent">
-                    <p class="empty-hint">请先导入数据并选择销售员</p>
+
+                <div id="projectsList" class="projects-list">
+                    <p class="empty-hint">加载中...</p>
                 </div>
-            </div>
-        </section>
+            </section>
+
+            <!-- ==================== 任务视图（核心工作台） ==================== -->
+            <section id="tasks-view" class="view">
+                <div class="workbench-header">
+                    <div class="workbench-title">
+                        <button class="btn btn-back" onclick="exitWorkbench()">← 返回</button>
+                        <h2 id="workbenchTitle">工作台</h2>
+                    </div>
+                    <div class="workbench-actions">
+                        <button class="btn btn-secondary" onclick="showGlobalAnalysisModal()">
+                            📊 AI全局分析
+                        </button>
+                    </div>
+                    <div class="workbench-score">
+                        <span class="score-label">项目总分：</span>
+                        <span class="score-value" id="workbenchScore">0</span>
+                        <span class="score-grade" id="workbenchGrade"></span>
+                    </div>
+                </div>
+
+                <div class="task-filters">
+                    <div class="filter-group">
+                        <label>筛选：</label>
+                        <button class="filter-btn active" data-filter="all">全部</button>
+                        <button class="filter-btn" data-filter="incomplete">未完成</button>
+                        <button class="filter-btn" data-filter="complete">已完成</button>
+                    </div>
+                    <div class="filter-group">
+                        <label>分组：</label>
+                        <button class="group-btn active" data-group="none">不分组</button>
+                        <button class="group-btn" data-group="category">按阶段分组</button>
+                    </div>
+                </div>
+
+                <div id="tasksList" class="tasks-list">
+                    <p class="empty-hint">请从项目视图选择一个项目</p>
+                </div>
+            </section>
+
+            <!-- ==================== 考核视图 ==================== -->
+            <section id="assessment-view" class="view">
+                <div class="assessment-header">
+                    <h2>月度考核</h2>
+                    <div class="month-selector">
+                        <select id="monthSelect" class="month-dropdown" onchange="onMonthChange()"></select>
+                    </div>
+                </div>
+
+                <div class="snapshot-panel">
+                    <div class="snapshot-status" id="snapshotStatus">
+                        <span class="status-icon">⏳</span>
+                        <span class="status-text">未生成快照</span>
+                    </div>
+                    <button class="btn btn-primary" id="generateSnapshotBtn" onclick="generateSnapshot()">
+                        📸 生成本月快照
+                    </button>
+                </div>
+
+                <div id="rankingContent" class="ranking-content">
+                    <p class="empty-hint">加载中...</p>
+                </div>
+
+                <!-- 项目明细弹窗 -->
+                <div id="projectDetailModal" class="modal-overlay">
+                    <div class="modal-content modal-large">
+                        <div class="modal-header">
+                            <h2 id="projectDetailTitle">项目明细</h2>
+                            <button class="modal-close" onclick="closeProjectDetailModal()">×</button>
+                        </div>
+                        <div class="modal-body" id="projectDetailBody">
+                            <!-- 动态生成项目明细 -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="assessment-actions">
+                    <button class="btn btn-secondary" onclick="exportToExcel()">
+                        📥 导出Excel
+                    </button>
+                </div>
+            </section>
+        </main>
     </div>
 
-    <script src="config.js"></script>
-    <script src="calculator.js"></script>
-    <script src="app.js"></script>
+    <!-- ==================== 弹窗：新建/编辑项目 ==================== -->
+    <div id="projectModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="projectModalTitle">新建项目</h2>
+                <button class="modal-close" onclick="closeProjectModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="projectForm" onsubmit="submitProject(event)">
+                    <input type="hidden" name="projectId" id="projectId">
+                    <div class="form-group">
+                        <label>项目名称 *</label>
+                        <input type="text" name="name" required placeholder="请输入项目名称">
+                    </div>
+                    <div class="form-group">
+                        <label>销售员 *</label>
+                        <input type="text" name="salesperson" required placeholder="请输入销售员姓名">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>项目金额（万元）*</label>
+                            <input type="number" name="amount" required placeholder="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>当前阶段 *</label>
+                            <select name="currentStage" required>
+                                <option value="接触">接触</option>
+                                <option value="递进">递进</option>
+                                <option value="深入">深入</option>
+                                <option value="执行">执行</option>
+                                <option value="冲刺">冲刺</option>
+                                <option value="谈判">谈判</option>
+                                <option value="签约">签约</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>进入当前阶段日期 *</label>
+                        <input type="date" name="stageStartDate" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeProjectModal()">取消</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 弹窗：上传新版本 ==================== -->
+    <div id="versionModal" class="modal-overlay">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="versionModalTitle">上传新版本</h2>
+                <button class="modal-close" onclick="closeVersionModal()">×</button>
+            </div>
+            <div class="modal-body" id="versionModalBody">
+                <!-- 动态生成表单 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 弹窗：版本历史 ==================== -->
+    <div id="historyModal" class="modal-overlay">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="historyModalTitle">版本历史</h2>
+                <button class="modal-close" onclick="closeHistoryModal()">×</button>
+            </div>
+            <div class="modal-body" id="historyModalBody">
+                <!-- 动态生成版本列表 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 弹窗：AI全局分析 ==================== -->
+    <div id="globalAnalysisModal" class="modal-overlay">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="globalAnalysisModalTitle">AI全局一致性分析</h2>
+                <button class="modal-close" onclick="closeGlobalAnalysisModal()">×</button>
+            </div>
+            <div class="modal-body" id="globalAnalysisModalBody">
+                <!-- 动态生成分析内容 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 弹窗：设置 ==================== -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>系统设置</h2>
+                <button class="modal-close" onclick="closeSettingsModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h3>数据管理</h3>
+                    <div class="settings-buttons">
+                        <button class="btn btn-secondary" onclick="loadTestDataFromSettings()">
+                            🧪 加载测试数据
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportAllData()">
+                            📤 导出数据
+                        </button>
+                        <button class="btn btn-danger" onclick="clearAllData()">
+                            🗑️ 清除数据
+                        </button>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>快照列表</h3>
+                    <div id="snapshotList">
+                        <p class="empty-hint">暂无快照</p>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>🤖 AI智能验证</h3>
+                    <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">
+                        启用Gemini AI进行内容质量智能验证（可选功能）
+                    </p>
+                    <div class="form-group">
+                        <label>Gemini API Key</label>
+                        <input type="password" id="geminiApiKey" placeholder="输入你的API Key" style="width: 100%;">
+                    </div>
+                    <div class="settings-buttons" style="margin-top: 10px;">
+                        <button class="btn btn-secondary" onclick="saveApiKey()">
+                            💾 保存
+                        </button>
+                        <button class="btn btn-secondary" onclick="testApiConnection()">
+                            🔗 测试连接
+                        </button>
+                        <a href="https://aistudio.google.com/apikey" target="_blank" class="btn btn-secondary">
+                            🔑 获取API Key
+                        </a>
+                    </div>
+                    <div id="apiTestResult" style="margin-top: 10px; padding: 10px; border-radius: 8px; display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 浮动设置按钮 -->
+    <button class="floating-btn" onclick="showSettingsModal()">⚙️</button>
+
+    <!-- 脚本加载 -->
+    <script src="task-config.js"></script>
+    <script src="task-rules.js"></script>
+    <script src="data-storage.js"></script>
+    <script src="score-engine.js"></script>
+    <script src="ai-validator.js"></script>
+    <script src="validation-engine.js"></script>
+    <script src="global-analyzer.js"></script>
+    <script src="version-validator.js"></script>
+    <script src="task-templates.js"></script>
+    <script src="test-data.js"></script>
+    <script src="new-app.js"></script>
 </body>
 </html>
