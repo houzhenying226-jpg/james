@@ -129,6 +129,27 @@ const VALIDATION_FUNCTIONS = {
         return { checks, allPassed, passRate: allPassed ? 100 : 50 };
     },
 
+    // 任务4.0: 招标情报与评委布局
+    '4.0': (fields) => {
+        const hasMethod = !!fields.bidding_method;
+        const hasDate = !!fields.expected_bid_date;
+        const juryCount = parseInt(fields.jury_total_count) || 0;
+        const juryList = Array.isArray(fields.jury_list) ? fields.jury_list : [];
+        const strategyLen = (fields.attack_strategy || '').length;
+        const hasConfidence = !!fields.confidence_level;
+
+        const checks = [
+            { label: '招标方式', passed: hasMethod },
+            { label: '开标时间', passed: hasDate },
+            { label: `评委人数(${juryCount}人)`, passed: juryCount >= 1 },
+            { label: `评委列表(${juryList.length}人)`, passed: juryList.length >= 1 && juryList.length === juryCount },
+            { label: `攻关策略(${strategyLen}字)`, passed: strategyLen >= 50 },
+            { label: '把握程度', passed: hasConfidence }
+        ];
+        const allPassed = checks.every(c => c.passed);
+        return { checks, allPassed, passRate: allPassed ? 100 : 30 };
+    },
+
     // 任务4.1: 投标文件
     '4.1': (fields) => {
         const checks = [
@@ -430,6 +451,65 @@ const TASK_CONFIG = [
     },
 
     // ==================== 执行阶段 ====================
+    {
+        code: "4.0",
+        name: "招标情报与评委布局",
+        category: "执行",
+        weight: 4.0,
+        description: "收集招标情报，分析评委构成，制定攻关策略",
+        fields: [
+            // Section 1: 基础信息
+            { key: "bidding_method", label: "招标方式", type: "radio", required: true,
+              options: ['公开招标', '邀请招标', '内部比价', '竞争性谈判', '单一来源采购'] },
+            { key: "expected_bid_date", label: "预计开标时间", type: "date", required: true },
+            { key: "bid_project_number", label: "招标项目编号", type: "text", required: false },
+            // Section 2: 第三方招标公司信息（条件显示）
+            { key: "agency_name", label: "招标公司名称", type: "text", required: false },
+            { key: "agency_contact_name", label: "负责人", type: "text", required: false },
+            { key: "agency_contact_phone", label: "联系方式", type: "text", required: false },
+            { key: "agency_relationship", label: "关系程度", type: "radio", required: false,
+              options: ['无联系', '初步接触', '熟悉', '深度合作'] },
+            // Section 3: 内部评审规则（条件显示）
+            { key: "evaluation_method", label: "评审方式", type: "radio", required: false,
+              options: ['综合评分法', '最低价法', '性价比法'] },
+            { key: "technical_score_ratio", label: "技术分占比(%)", type: "number", required: false },
+            { key: "commercial_score_ratio", label: "商务分占比(%)", type: "number", required: false },
+            { key: "other_score_items", label: "其他评分项", type: "text", required: false },
+            { key: "scoring_rule_file", label: "评分规则文件", type: "file", required: false },
+            // Section 4: 评委构成分析
+            { key: "jury_total_count", label: "评委总人数", type: "number", required: true },
+            { key: "jury_list", label: "评委列表", type: "list", required: true,
+              itemFields: [
+                { id: 'name', label: '姓名', type: 'text', required: true },
+                { id: 'department', label: '部门', type: 'text', required: true },
+                { id: 'position', label: '职位', type: 'text', required: true },
+                { id: 'jury_type', label: '类型', type: 'select', options: ['技术评委', '商务评委', '采购评委', '领导评委'] },
+                { id: 'influence', label: '话语权', type: 'radio', options: ['高', '中', '低'] },
+                { id: 'relationship', label: '关系', type: 'radio', options: ['支持我方', '中立', '倾向竞品', '未知'] },
+                { id: 'our_contact', label: '维护人', type: 'text', required: false }
+              ] },
+            // Section 5: 攻关计划与自评
+            { key: "attack_strategy", label: "攻关策略", type: "textarea", required: true },
+            { key: "confidence_level", label: "整体把握程度", type: "radio", required: true,
+              options: ['非常有把握', '比较有把握', '一般', '较弱', '很弱'] },
+            { key: "resource_needs", label: "需要协调的资源", type: "textarea", required: false }
+        ],
+        validation: {
+            type: "custom",
+            description: "招标情报完整，评委分析详细，攻关策略具体",
+            check: (fields) => {
+                const hasMethod = !!fields.bidding_method;
+                const hasDate = !!fields.expected_bid_date;
+                const hasJuryCount = (parseInt(fields.jury_total_count) || 0) >= 1;
+                const hasJuryList = Array.isArray(fields.jury_list) && fields.jury_list.length >= 1;
+                const hasStrategy = (fields.attack_strategy || '').length >= 50;
+                const hasConfidence = !!fields.confidence_level;
+                return hasMethod && hasDate && hasJuryCount && hasJuryList && hasStrategy && hasConfidence;
+            },
+            passRate: 100,
+            failRate: 30
+        }
+    },
     {
         code: "4.1",
         name: "投标文件准备",

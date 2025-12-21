@@ -1756,43 +1756,137 @@ const TASK_RULES = {
     // ==================== 4.0 招标情报与评委布局 ====================
     '4.0': {
         fields: {
-            // 招标情报
-            biddingMethod: { type: 'select', label: '招标方式' },
-            scoringRuleFile: { type: 'filename', label: '评分规则文件' },
-            technicalScoreRatio: { type: 'number', label: '技术分占比(%)' },
-            commercialScoreRatio: { type: 'number', label: '商务分占比(%)' },
-            scoringWeightAnalysis: { type: 'text', label: '评分权重分析' },
-            // 评委布局
-            juryCount: { type: 'number', label: '评委数量' },
-            juryList: { type: 'text', label: '评委名单' },
-            juryTendencyAnalysis: { type: 'text', label: '评委倾向分析' },
-            juryPRStrategy: { type: 'text', label: '公关策略' },
-            intelSource: { type: 'select', label: '情报来源' }
+            // Section 1: 基础信息
+            bidding_method: { type: 'radio', label: '招标方式' },
+            expected_bid_date: { type: 'date', label: '预计开标时间' },
+            bid_project_number: { type: 'text', label: '招标项目编号' },
+
+            // Section 2: 第三方招标公司信息（条件显示：公开招标/邀请招标）
+            agency_name: { type: 'text', label: '招标公司名称' },
+            agency_contact_name: { type: 'text', label: '负责人' },
+            agency_contact_phone: { type: 'text', label: '联系方式' },
+            agency_relationship: { type: 'radio', label: '关系程度' },
+
+            // Section 3: 内部评审规则（条件显示：内部比价/竞争性谈判）
+            evaluation_method: { type: 'radio', label: '评审方式' },
+            technical_score_ratio: { type: 'number', label: '技术分占比(%)' },
+            commercial_score_ratio: { type: 'number', label: '商务分占比(%)' },
+            other_score_items: { type: 'text', label: '其他评分项' },
+            scoring_rule_file: { type: 'file', label: '评分规则文件' },
+
+            // Section 4: 评委构成分析
+            jury_total_count: { type: 'number', label: '评委总人数' },
+            jury_list: { type: 'list', label: '评委列表' },
+
+            // Section 5: 攻关计划与自评
+            attack_strategy: { type: 'textarea', label: '攻关策略' },
+            confidence_level: { type: 'radio', label: '整体把握程度' },
+            resource_needs: { type: 'textarea', label: '需要协调的资源' }
         },
         hardRules: [
+            // === Section 1: 基础信息验证 ===
             {
                 id: 'bidding_method',
                 label: '招标方式',
                 validate: (f) => {
-                    const method = f.biddingMethod || '';
-                    return ['公开招标', '邀请招标', '竞争性谈判', '询价采购', '单一来源'].includes(method);
+                    const method = f.bidding_method || '';
+                    return ['公开招标', '邀请招标', '内部比价', '竞争性谈判', '单一来源采购'].includes(method);
                 },
                 getMessage: (f, passed) => {
-                    const method = f.biddingMethod || '未选择';
-                    return passed ? `✓ 招标方式：${method}` : `招标方式：未选择`;
+                    const method = f.bidding_method || '未选择';
+                    return passed ? `✓ 招标方式：${method}` : `招标方式：请选择`;
                 },
                 severity: 'error'
             },
             {
-                id: 'scoring_rule_file',
-                label: '评分规则文件',
+                id: 'expected_bid_date',
+                label: '预计开标时间',
                 validate: (f) => {
-                    const file = f.scoringRuleFile || '';
-                    return file.trim().length > 0;
+                    const date = f.expected_bid_date || '';
+                    if (!date) return false;
+                    // 检查是否是有效日期格式
+                    return /^\d{4}-\d{2}-\d{2}$/.test(date);
                 },
                 getMessage: (f, passed) => {
-                    const file = f.scoringRuleFile || '';
-                    return passed ? `✓ 评分规则：${file}` : '评分规则文件：未上传';
+                    const date = f.expected_bid_date || '';
+                    if (!date) return '预计开标时间：请选择';
+                    return passed ? `✓ 预计开标时间：${date}` : '预计开标时间：日期格式无效';
+                },
+                severity: 'error'
+            },
+
+            // === Section 2: 第三方招标公司信息（条件验证）===
+            {
+                id: 'agency_info',
+                label: '招标公司信息',
+                validate: (f) => {
+                    const method = f.bidding_method || '';
+                    // 只有公开招标或邀请招标时需要验证
+                    if (!['公开招标', '邀请招标'].includes(method)) {
+                        return true; // 其他方式跳过验证
+                    }
+                    const name = (f.agency_name || '').trim();
+                    const contact = (f.agency_contact_name || '').trim();
+                    const phone = (f.agency_contact_phone || '').trim();
+                    return name.length >= 2 && contact.length >= 2 && phone.length >= 7;
+                },
+                getMessage: (f, passed) => {
+                    const method = f.bidding_method || '';
+                    if (!['公开招标', '邀请招标'].includes(method)) {
+                        return null; // 不显示
+                    }
+                    if (passed) {
+                        return `✓ 招标公司：${f.agency_name}（${f.agency_contact_name}）`;
+                    }
+                    const missing = [];
+                    if (!(f.agency_name || '').trim()) missing.push('公司名称');
+                    if (!(f.agency_contact_name || '').trim()) missing.push('负责人');
+                    if (!(f.agency_contact_phone || '').trim()) missing.push('联系方式');
+                    return `招标公司信息：${missing.join('、')}未填写`;
+                },
+                severity: 'error'
+            },
+            {
+                id: 'agency_relationship',
+                label: '招标公司关系',
+                validate: (f) => {
+                    const method = f.bidding_method || '';
+                    if (!['公开招标', '邀请招标'].includes(method)) {
+                        return true;
+                    }
+                    const rel = f.agency_relationship || '';
+                    return ['无联系', '初步接触', '熟悉', '深度合作'].includes(rel);
+                },
+                getMessage: (f, passed) => {
+                    const method = f.bidding_method || '';
+                    if (!['公开招标', '邀请招标'].includes(method)) {
+                        return null;
+                    }
+                    const rel = f.agency_relationship || '';
+                    return passed ? `✓ 与招标公司关系：${rel}` : '请选择与招标公司的关系程度';
+                },
+                severity: 'warning'
+            },
+
+            // === Section 3: 内部评审规则（条件验证）===
+            {
+                id: 'evaluation_method',
+                label: '评审方式',
+                validate: (f) => {
+                    const method = f.bidding_method || '';
+                    if (!['内部比价', '竞争性谈判'].includes(method)) {
+                        return true;
+                    }
+                    const evalMethod = f.evaluation_method || '';
+                    return ['综合评分法', '最低价法', '性价比法'].includes(evalMethod);
+                },
+                getMessage: (f, passed) => {
+                    const method = f.bidding_method || '';
+                    if (!['内部比价', '竞争性谈判'].includes(method)) {
+                        return null;
+                    }
+                    const evalMethod = f.evaluation_method || '未选择';
+                    return passed ? `✓ 评审方式：${evalMethod}` : '请选择评审方式';
                 },
                 severity: 'error'
             },
@@ -1800,14 +1894,22 @@ const TASK_RULES = {
                 id: 'score_ratio_sum',
                 label: '分值比例',
                 validate: (f) => {
-                    const tech = parseFloat(f.technicalScoreRatio) || 0;
-                    const comm = parseFloat(f.commercialScoreRatio) || 0;
-                    // 技术分+商务分应接近100%（允许±5%误差，考虑可能有其他分项）
+                    const method = f.bidding_method || '';
+                    if (!['内部比价', '竞争性谈判'].includes(method)) {
+                        return true;
+                    }
+                    const tech = parseFloat(f.technical_score_ratio) || 0;
+                    const comm = parseFloat(f.commercial_score_ratio) || 0;
+                    // 技术分+商务分应接近100%（允许有其他分项）
                     return tech > 0 && comm > 0 && (tech + comm >= 80) && (tech + comm <= 105);
                 },
                 getMessage: (f, passed) => {
-                    const tech = parseFloat(f.technicalScoreRatio) || 0;
-                    const comm = parseFloat(f.commercialScoreRatio) || 0;
+                    const method = f.bidding_method || '';
+                    if (!['内部比价', '竞争性谈判'].includes(method)) {
+                        return null;
+                    }
+                    const tech = parseFloat(f.technical_score_ratio) || 0;
+                    const comm = parseFloat(f.commercial_score_ratio) || 0;
                     const sum = tech + comm;
                     if (passed) {
                         return `✓ 分值比例：技术${tech}% + 商务${comm}% = ${sum}%`;
@@ -1819,71 +1921,111 @@ const TASK_RULES = {
                 },
                 severity: 'error'
             },
+
+            // === Section 4: 评委构成分析 ===
             {
-                id: 'scoring_weight_analysis',
-                label: '评分权重分析',
-                validate: (f) => (f.scoringWeightAnalysis || '').length >= 50,
+                id: 'jury_total_count',
+                label: '评委总人数',
+                validate: (f) => {
+                    const count = parseInt(f.jury_total_count) || 0;
+                    return count >= 1 && count <= 20;
+                },
                 getMessage: (f, passed) => {
-                    const text = f.scoringWeightAnalysis || '';
+                    const count = parseInt(f.jury_total_count) || 0;
+                    if (count === 0) return '评委总人数：请填写';
+                    return passed ? `✓ 评委总人数：${count}人` : `⚠️ 评委人数${count}人（应在1-20人之间）`;
+                },
+                severity: 'error'
+            },
+            {
+                id: 'jury_list_count_match',
+                label: '评委列表数量',
+                validate: (f) => {
+                    const totalCount = parseInt(f.jury_total_count) || 0;
+                    const list = f.jury_list || [];
+                    // 评委列表是数组，检查长度是否匹配总人数
+                    if (!Array.isArray(list)) return false;
+                    return list.length === totalCount;
+                },
+                getMessage: (f, passed) => {
+                    const totalCount = parseInt(f.jury_total_count) || 0;
+                    const list = f.jury_list || [];
+                    const listCount = Array.isArray(list) ? list.length : 0;
+                    if (passed) {
+                        return `✓ 评委列表：${listCount}人（与总人数一致）`;
+                    }
+                    return `⚠️ 评委列表${listCount}人 ≠ 总人数${totalCount}人`;
+                },
+                severity: 'error'
+            },
+            {
+                id: 'jury_list_complete',
+                label: '评委信息完整性',
+                validate: (f) => {
+                    const list = f.jury_list || [];
+                    if (!Array.isArray(list) || list.length === 0) return false;
+
+                    // 检查每个评委的必填字段
+                    return list.every(jury => {
+                        const name = (jury.name || '').trim();
+                        const dept = (jury.department || '').trim();
+                        const pos = (jury.position || '').trim();
+                        const type = jury.jury_type || '';
+                        const influence = jury.influence || '';
+                        const relationship = jury.relationship || '';
+
+                        return name.length >= 2 &&
+                               dept.length >= 2 &&
+                               pos.length >= 2 &&
+                               ['技术评委', '商务评委', '采购评委', '领导评委'].includes(type) &&
+                               ['高', '中', '低'].includes(influence) &&
+                               ['支持我方', '中立', '倾向竞品', '未知'].includes(relationship);
+                    });
+                },
+                getMessage: (f, passed) => {
+                    const list = f.jury_list || [];
+                    if (!Array.isArray(list) || list.length === 0) {
+                        return '评委列表：请添加评委信息';
+                    }
+                    if (passed) {
+                        return `✓ 评委信息：${list.length}人信息完整`;
+                    }
+                    // 找出不完整的评委
+                    const incomplete = list.filter(jury => {
+                        const name = (jury.name || '').trim();
+                        const dept = (jury.department || '').trim();
+                        const pos = (jury.position || '').trim();
+                        return name.length < 2 || dept.length < 2 || pos.length < 2 ||
+                               !jury.jury_type || !jury.influence || !jury.relationship;
+                    });
+                    return `⚠️ ${incomplete.length}位评委信息不完整`;
+                },
+                severity: 'error'
+            },
+
+            // === Section 5: 攻关计划与自评 ===
+            {
+                id: 'attack_strategy',
+                label: '攻关策略',
+                validate: (f) => (f.attack_strategy || '').length >= 50,
+                getMessage: (f, passed) => {
+                    const text = f.attack_strategy || '';
                     return text.length >= 50
-                        ? `✓ 评分权重分析：${text.length}字`
-                        : `评分权重分析：${text.length}字（需≥50字，说明得分点和失分点）`;
+                        ? `✓ 攻关策略：${text.length}字`
+                        : `攻关策略：${text.length}字（需≥50字，说明具体策略）`;
                 },
                 severity: 'error'
             },
             {
-                id: 'jury_count',
-                label: '评委数量',
+                id: 'confidence_level',
+                label: '把握程度',
                 validate: (f) => {
-                    const count = parseInt(f.juryCount) || 0;
-                    return count >= 3 && count <= 15; // 通常3-15人
+                    const level = f.confidence_level || '';
+                    return ['非常有把握', '比较有把握', '一般', '较弱', '很弱'].includes(level);
                 },
                 getMessage: (f, passed) => {
-                    const count = parseInt(f.juryCount) || 0;
-                    if (count === 0) return '评委数量：未填写';
-                    return passed ? `✓ 评委数量：${count}人` : `⚠️ 评委数量${count}人（通常3-15人）`;
-                },
-                severity: 'error'
-            },
-            {
-                id: 'jury_list',
-                label: '评委名单',
-                validate: (f) => {
-                    const list = f.juryList || '';
-                    // 至少有2个评委信息（按分隔符拆分）
-                    const items = list.split(/[,，;；\n]+/).filter(i => i.trim().length >= 2);
-                    return items.length >= 2;
-                },
-                getMessage: (f, passed) => {
-                    const list = f.juryList || '';
-                    const items = list.split(/[,，;；\n]+/).filter(i => i.trim().length >= 2);
-                    return passed
-                        ? `✓ 评委名单：${items.length}人`
-                        : `评委名单：${items.length}人（需≥2人，格式：姓名-职位-部门）`;
-                },
-                severity: 'error'
-            },
-            {
-                id: 'jury_tendency',
-                label: '评委倾向分析',
-                validate: (f) => (f.juryTendencyAnalysis || '').length >= 30,
-                getMessage: (f, passed) => {
-                    const text = f.juryTendencyAnalysis || '';
-                    return text.length >= 30
-                        ? `✓ 评委倾向分析：${text.length}字`
-                        : `评委倾向分析：${text.length}字（需≥30字）`;
-                },
-                severity: 'warning'
-            },
-            {
-                id: 'jury_pr_strategy',
-                label: '公关策略',
-                validate: (f) => (f.juryPRStrategy || '').length >= 30,
-                getMessage: (f, passed) => {
-                    const text = f.juryPRStrategy || '';
-                    return text.length >= 30
-                        ? `✓ 公关策略：${text.length}字`
-                        : `公关策略：${text.length}字（需≥30字，说明针对性公关措施）`;
+                    const level = f.confidence_level || '未评估';
+                    return passed ? `✓ 把握程度：${level}` : '请选择整体把握程度';
                 },
                 severity: 'warning'
             }
@@ -1896,9 +2038,9 @@ const TASK_RULES = {
                 validate: (curr, ref) => {
                     console.log('=== 4.0关联验证: 评委与竞品关系 ===');
 
-                    // 获取评委倾向分析
-                    const juryAnalysis = curr.juryTendencyAnalysis || '';
-                    if (!juryAnalysis || juryAnalysis.length < 20) {
+                    // 获取评委列表中倾向竞品的评委
+                    const juryList = curr.jury_list || [];
+                    if (!Array.isArray(juryList) || juryList.length === 0) {
                         return null; // 待验证
                     }
 
@@ -1908,46 +2050,59 @@ const TASK_RULES = {
                         return null; // 待验证
                     }
 
-                    // 检查评委分析是否提到竞争对手
-                    const hasCompetitorMention = juryAnalysis.includes('竞') ||
-                        juryAnalysis.includes('对手') ||
-                        juryAnalysis.includes('其他') ||
-                        juryAnalysis.includes('倾向');
-
-                    return hasCompetitorMention;
-                },
-                passMessage: '✓ 评委倾向分析已考虑竞争因素',
-                failMessage: '⚠️ 建议在评委分析中说明与竞争对手的关系',
-                pendingMessage: '⏳ 请先完成评委分析和1.3竞争分析',
-                severity: 'warning'
-            },
-            {
-                id: 'cross_budget_match',
-                label: '预算与技术分权重',
-                refTaskCode: '1.1',
-                validate: (curr, ref) => {
-                    console.log('=== 4.0关联验证: 预算与分值比例 ===');
-
-                    const techRatio = parseFloat(curr.technicalScoreRatio) || 0;
-                    const commRatio = parseFloat(curr.commercialScoreRatio) || 0;
-
-                    if (techRatio === 0 || commRatio === 0) {
-                        return null; // 待验证
-                    }
-
-                    const budget = parseFloat(ref?.a_budget_amount || ref?.aDescription?.match(/\d+/)?.[0]) || 0;
-
-                    // 高预算项目通常技术分权重更高
-                    if (budget >= 500 && techRatio < 40) {
-                        console.log(`大项目(${budget}万)技术分仅${techRatio}%，偏低`);
-                        return false;
+                    // 检查是否有倾向竞品的评委，如有则攻关策略应包含应对措施
+                    const proCompetitor = juryList.filter(j => j.relationship === '倾向竞品');
+                    if (proCompetitor.length > 0) {
+                        const strategy = curr.attack_strategy || '';
+                        // 策略中应提到竞品或这些评委
+                        const hasCounterStrategy = strategy.includes('竞') ||
+                            proCompetitor.some(j => strategy.includes(j.name));
+                        return hasCounterStrategy;
                     }
 
                     return true;
                 },
-                passMessage: '✓ 分值比例与项目规模匹配',
-                failMessage: '⚠️ 大项目通常技术分权重较高，请核实',
-                pendingMessage: '⏳ 请先填写分值比例',
+                passMessage: '✓ 攻关策略已考虑竞品因素',
+                failMessage: '⚠️ 有评委倾向竞品，建议在攻关策略中说明应对措施',
+                pendingMessage: '⏳ 请先完成评委列表和1.3竞争分析',
+                severity: 'warning'
+            },
+            {
+                id: 'cross_decision_chain',
+                label: '评委与决策链',
+                refTaskCode: '1.2',
+                validate: (curr, ref) => {
+                    console.log('=== 4.0关联验证: 评委与决策链 ===');
+
+                    const juryList = curr.jury_list || [];
+                    if (!Array.isArray(juryList) || juryList.length === 0) {
+                        return null;
+                    }
+
+                    // 获取1.2决策链信息
+                    const decisionChain = ref?.decisionChainDesc || ref?.keyDecisionMakers || '';
+                    if (!decisionChain || decisionChain.length < 20) {
+                        return null;
+                    }
+
+                    // 检查高话语权评委是否在决策链中提及
+                    const highInfluence = juryList.filter(j => j.influence === '高');
+                    if (highInfluence.length === 0) {
+                        return true;
+                    }
+
+                    // 至少有一个高话语权评委在决策链中有体现
+                    const mentioned = highInfluence.some(j =>
+                        decisionChain.includes(j.name) ||
+                        decisionChain.includes(j.position) ||
+                        decisionChain.includes(j.department)
+                    );
+
+                    return mentioned;
+                },
+                passMessage: '✓ 高话语权评委与决策链一致',
+                failMessage: '⚠️ 高话语权评委未在决策链中体现，请核实',
+                pendingMessage: '⏳ 请先完成评委列表和1.2决策链',
                 severity: 'warning'
             }
         ],
@@ -1958,15 +2113,16 @@ const TASK_RULES = {
                 prompt: `请验证任务4.0 招标情报与评委布局的内容质量：
 
 验证要点：
-1. 评委名单是否有具体姓名和职位（而非"评委1""评委2"）
-2. 评委倾向分析是否有针对性（说明每个评委的关注点和倾向）
-3. 公关策略是否具体可执行（而非"加强沟通""搞好关系"）
-4. 评分权重分析是否说明了得分点和失分点
+1. 评委列表是否有具体姓名、部门、职位（而非"评委1""评委2"）
+2. 评委类型、话语权、关系程度标注是否合理
+3. 攻关策略是否针对性强且具体可执行（而非"加强沟通""搞好关系"）
+4. 如有倾向竞品的评委，攻关策略是否包含应对措施
+5. 整体把握程度自评是否与评委关系分析相符
 
 评分标准：
 - 名单具体、分析有针对性、策略可执行：通过
 - 信息笼统或策略空洞：不通过`,
-                targetFields: ['juryList', 'juryTendencyAnalysis', 'juryPRStrategy', 'scoringWeightAnalysis']
+                targetFields: ['jury_list', 'attack_strategy', 'confidence_level']
             }
         ]
     },

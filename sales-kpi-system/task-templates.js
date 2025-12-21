@@ -274,13 +274,280 @@ const TASK_1_1_TEMPLATE = {
     }
 };
 
+// ==================== 任务4.0 招标情报与评委布局 ====================
+const TASK_4_0_TEMPLATE = {
+    taskCode: '4.0',
+    taskName: '招标情报与评委布局',
+    description: '收集招标情报，分析评委构成，制定攻关策略',
+
+    sections: [
+        // Section 1: 基础信息 - 始终显示
+        {
+            id: 'section_basic',
+            title: '基础信息',
+            description: '招标基本信息',
+            fields: [
+                {
+                    id: 'bidding_method',
+                    label: '招标方式',
+                    type: 'radio',
+                    options: ['公开招标', '邀请招标', '内部比价', '竞争性谈判', '单一来源采购'],
+                    required: true,
+                    helpText: '选择客户采用的采购方式'
+                },
+                {
+                    id: 'expected_bid_date',
+                    label: '预计开标时间',
+                    type: 'date',
+                    required: true,
+                    helpText: '预计开标或评审的时间'
+                },
+                {
+                    id: 'bid_project_number',
+                    label: '招标项目编号',
+                    type: 'text',
+                    required: false,
+                    validation: { maxLength: 50 },
+                    helpText: '如有招标编号请填写'
+                }
+            ]
+        },
+
+        // Section 2: 第三方招标公司信息 - 条件显示（公开招标或邀请招标时显示）
+        {
+            id: 'section_agency',
+            title: '第三方招标公司信息',
+            description: '招标代理公司信息（如有）',
+            condition: { field: 'bidding_method', values: ['公开招标', '邀请招标'] },
+            fields: [
+                {
+                    id: 'agency_name',
+                    label: '招标公司名称',
+                    type: 'text',
+                    required: true,
+                    condition: { field: 'bidding_method', values: ['公开招标', '邀请招标'] },
+                    validation: { minLength: 2, maxLength: 100 }
+                },
+                {
+                    id: 'agency_contact_name',
+                    label: '负责人',
+                    type: 'text',
+                    required: true,
+                    condition: { field: 'bidding_method', values: ['公开招标', '邀请招标'] },
+                    validation: { minLength: 2, maxLength: 20 }
+                },
+                {
+                    id: 'agency_contact_phone',
+                    label: '联系方式',
+                    type: 'text',
+                    required: true,
+                    condition: { field: 'bidding_method', values: ['公开招标', '邀请招标'] },
+                    validation: { pattern: '^[0-9-]{7,20}$', message: '请输入有效的电话号码' }
+                },
+                {
+                    id: 'agency_relationship',
+                    label: '关系程度',
+                    type: 'radio',
+                    options: ['无联系', '初步接触', '熟悉', '深度合作'],
+                    required: true,
+                    condition: { field: 'bidding_method', values: ['公开招标', '邀请招标'] },
+                    helpText: '与该招标公司的关系程度'
+                }
+            ]
+        },
+
+        // Section 3: 内部评审规则 - 条件显示（内部比价或竞争性谈判时显示）
+        {
+            id: 'section_internal_rules',
+            title: '内部评审规则',
+            description: '客户内部评审规则信息',
+            condition: { field: 'bidding_method', values: ['内部比价', '竞争性谈判'] },
+            fields: [
+                {
+                    id: 'evaluation_method',
+                    label: '评审方式',
+                    type: 'radio',
+                    options: ['综合评分法', '最低价法', '性价比法'],
+                    required: true,
+                    condition: { field: 'bidding_method', values: ['内部比价', '竞争性谈判'] },
+                    helpText: '客户采用的评审打分方式'
+                },
+                {
+                    id: 'technical_score_ratio',
+                    label: '技术分占比',
+                    type: 'number',
+                    unit: '%',
+                    required: true,
+                    condition: { field: 'bidding_method', values: ['内部比价', '竞争性谈判'] },
+                    validation: { min: 0, max: 100 }
+                },
+                {
+                    id: 'commercial_score_ratio',
+                    label: '商务分占比',
+                    type: 'number',
+                    unit: '%',
+                    required: true,
+                    condition: { field: 'bidding_method', values: ['内部比价', '竞争性谈判'] },
+                    validation: { min: 0, max: 100 }
+                },
+                {
+                    id: 'other_score_items',
+                    label: '其他评分项',
+                    type: 'text',
+                    required: false,
+                    condition: { field: 'bidding_method', values: ['内部比价', '竞争性谈判'] },
+                    validation: { maxLength: 200 },
+                    helpText: '如有其他评分项请说明（如服务分、资质分等）'
+                },
+                {
+                    id: 'scoring_rule_file',
+                    label: '评分规则文件',
+                    type: 'file',
+                    accept: '.docx,.doc,.pdf,.xlsx,.xls',
+                    required: false,
+                    condition: { field: 'bidding_method', values: ['内部比价', '竞争性谈判'] },
+                    helpText: '上传评分规则文件（如有）'
+                }
+            ]
+        },
+
+        // Section 4: 评委构成分析 - 始终显示
+        {
+            id: 'section_jury',
+            title: '评委构成分析',
+            description: '评委信息与关系分析',
+            fields: [
+                {
+                    id: 'jury_total_count',
+                    label: '评委总人数',
+                    type: 'number',
+                    required: true,
+                    validation: { min: 1, max: 20 },
+                    helpText: '参与评审的评委总人数'
+                },
+                {
+                    id: 'jury_list',
+                    label: '评委列表',
+                    type: 'list',
+                    required: true,
+                    helpText: '添加每位评委的详细信息',
+                    itemFields: [
+                        {
+                            id: 'name',
+                            label: '姓名',
+                            type: 'text',
+                            required: true,
+                            validation: { minLength: 2, maxLength: 10 }
+                        },
+                        {
+                            id: 'department',
+                            label: '部门',
+                            type: 'text',
+                            required: true,
+                            validation: { minLength: 2, maxLength: 30 }
+                        },
+                        {
+                            id: 'position',
+                            label: '职位',
+                            type: 'text',
+                            required: true,
+                            validation: { minLength: 2, maxLength: 30 }
+                        },
+                        {
+                            id: 'jury_type',
+                            label: '评委类型',
+                            type: 'select',
+                            options: ['技术评委', '商务评委', '采购评委', '领导评委'],
+                            required: true
+                        },
+                        {
+                            id: 'influence',
+                            label: '话语权',
+                            type: 'radio',
+                            options: ['高', '中', '低'],
+                            required: true
+                        },
+                        {
+                            id: 'relationship',
+                            label: '关系程度',
+                            type: 'radio',
+                            options: ['支持我方', '中立', '倾向竞品', '未知'],
+                            required: true
+                        },
+                        {
+                            id: 'our_contact',
+                            label: '维护人',
+                            type: 'text',
+                            required: false,
+                            validation: { maxLength: 10 },
+                            helpText: '我方对接此评委的销售人员'
+                        }
+                    ]
+                }
+            ]
+        },
+
+        // Section 5: 攻关计划与自评 - 始终显示
+        {
+            id: 'section_strategy',
+            title: '攻关计划与自评',
+            description: '针对评委的攻关策略和整体评估',
+            fields: [
+                {
+                    id: 'attack_strategy',
+                    label: '攻关策略',
+                    type: 'textarea',
+                    required: true,
+                    validation: { minLength: 50, maxLength: 1000 },
+                    helpText: '针对各评委的攻关策略和计划（至少50字）'
+                },
+                {
+                    id: 'confidence_level',
+                    label: '整体把握程度',
+                    type: 'radio',
+                    options: ['非常有把握', '比较有把握', '一般', '较弱', '很弱'],
+                    required: true,
+                    helpText: '自评中标把握程度'
+                },
+                {
+                    id: 'resource_needs',
+                    label: '需要协调的资源',
+                    type: 'textarea',
+                    required: false,
+                    validation: { maxLength: 500 },
+                    helpText: '需要公司或领导协调支持的资源'
+                }
+            ]
+        }
+    ],
+
+    // 版本演变验证配置
+    versionValidation: {
+        keyFields: ['bidding_method', 'jury_total_count', 'confidence_level', 'jury_list'],
+        allowedChanges: {
+            'confidence_level': {
+                '很弱→较弱': 'normal',
+                '较弱→一般': 'normal',
+                '一般→比较有把握': 'normal',
+                '比较有把握→非常有把握': 'normal',
+                '非常有把握→比较有把握': 'warning',
+                '比较有把握→一般': 'warning',
+                '一般→较弱': 'warning',
+                '较弱→很弱': 'warning'
+            },
+            'jury_total_count': { threshold: 0.30 }
+        }
+    }
+};
+
 // ==================== 模板工具函数 ====================
 
 const TaskTemplates = {
     // 模板存储
     templates: {
-        '1.1': TASK_1_1_TEMPLATE
-        // 后续添加 1.2-7.1 模板
+        '1.1': TASK_1_1_TEMPLATE,
+        '4.0': TASK_4_0_TEMPLATE
+        // 后续添加其他任务模板
     },
 
     /**

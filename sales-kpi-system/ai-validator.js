@@ -541,51 +541,75 @@ ${related?.['2.3']?.feedbackList || related?.['2.3']?.feedbackSummary || related
     // ==================== 4.0 招标情报与评委布局 ====================
     '4.0': {
         name: '招标情报与评委布局',
-        build: (data, related) => `你是服装行业资深销售总监，请审核招标情报与评委布局的完整性和针对性。
+        build: (data, related) => {
+            // 格式化评委列表为可读文本
+            const formatJuryList = (list) => {
+                if (!Array.isArray(list) || list.length === 0) return '未填写';
+                return list.map((j, i) =>
+                    `${i+1}. ${j.name || '?'}（${j.department || '?'}-${j.position || '?'}）` +
+                    `类型:${j.jury_type || '?'} 话语权:${j.influence || '?'} 关系:${j.relationship || '?'} 维护人:${j.our_contact || '-'}`
+                ).join('\n');
+            };
+
+            return `你是服装行业资深销售总监，请审核招标情报与评委布局的完整性和针对性。
 
 【待审核内容】
-招标方式：${data.biddingMethod || '未填写'}
-技术分占比：${data.technicalScoreRatio || '未填写'}%
-商务分占比：${data.commercialScoreRatio || '未填写'}%
-评分权重分析：${data.scoringWeightAnalysis || '未填写'}
-评委数量：${data.juryCount || '未填写'}
-评委名单：${data.juryList || '未填写'}
-评委倾向分析：${data.juryTendencyAnalysis || '未填写'}
-公关策略：${data.juryPRStrategy || '未填写'}
+
+= 基础信息 =
+招标方式：${data.bidding_method || '未填写'}
+预计开标时间：${data.expected_bid_date || '未填写'}
+招标项目编号：${data.bid_project_number || '无'}
+
+= 评审规则（如适用）=
+评审方式：${data.evaluation_method || '-'}
+技术分占比：${data.technical_score_ratio || '-'}%
+商务分占比：${data.commercial_score_ratio || '-'}%
+其他评分项：${data.other_score_items || '无'}
+
+= 评委信息 =
+评委总人数：${data.jury_total_count || '未填写'}
+评委列表：
+${formatJuryList(data.jury_list)}
+
+= 攻关计划 =
+攻关策略：${data.attack_strategy || '未填写'}
+整体把握程度：${data.confidence_level || '未评估'}
+需要协调的资源：${data.resource_needs || '无'}
 
 【关联数据】
+1.2决策链：${related?.['1.2']?.decisionChainDesc || related?.['1.2']?.keyDecisionMakers || '无'}
 1.3竞争对手：${related?.['1.3']?.competitorList || related?.['1.3']?.competitorAnalysis || '无'}
 
 【AI需要判断的 - 全部重要】
 
 1. 评委信息真实性：
-   - 评委名单是否有具体姓名？
+   - 评委是否有具体姓名、部门、职位？
    - 还是"评委A""评委1"这类编造？
-   - 职位信息是否完整？
+   - 各字段是否填写完整？
 
-2. 评委倾向分析质量：
-   - 是否针对每个评委分析了关注点？
-   - 还是笼统的"技术型""商务型"？
-   - 有没有说明与竞争对手的关系？
-   举例：
-   ❌ 笼统："张主任关注技术"
-   ✅ 具体："张主任关注面料质量，曾与海澜之家合作过，对品牌认可度一般，需重点展示我司质检体系"
+2. 评委标注合理性：
+   - 评委类型分类是否合理？
+   - 话语权高低是否与职位匹配？
+   - 关系程度标注是否可信？
+   - 高话语权评委是否在决策链中有体现？
 
-3. 公关策略可执行性：
+3. 攻关策略可执行性：
    - 策略是否有具体行动？
    - 还是"加强沟通""搞好关系"这类空话？
    - 是否针对评委特点制定？
+   - 倾向竞品的评委是否有应对策略？
    举例：
    ❌ 空话："与张主任保持良好沟通"
    ✅ 具体："张主任关注质检，安排工厂参观让其亲眼验证质检流程，时间定在开标前一周"
 
-4. 评分分析深度：
-   - 是否分析了我方得分点和失分点？
-   - 是否有针对性的应对策略？
+4. 把握程度与关系匹配：
+   - 自评把握程度是否与评委关系分析相符？
+   - 如多数评委"倾向竞品"但自评"非常有把握"则矛盾
 
 5. 凑数嫌疑：
-   - 评委分析是否雷同？
-   - 公关策略是否千篇一律？
+   - 评委信息是否雷同（部门职位完全一样）？
+   - 维护人是否都是同一人？
+   - 攻关策略是否千篇一律？
 
 【请返回JSON】
 {
@@ -596,24 +620,25 @@ ${related?.['2.3']?.feedbackList || related?.['2.3']?.feedbackSummary || related
       "理由": "..."
     },
     {
-      "项目": "倾向分析质量",
+      "项目": "评委标注合理性",
       "结论": "通过/警告/不通过",
       "理由": "..."
     },
     {
-      "项目": "公关策略可执行性",
+      "项目": "攻关策略可执行性",
       "结论": "通过/警告/不通过",
       "理由": "..."
     },
     {
-      "项目": "评分分析深度",
+      "项目": "把握程度匹配",
       "结论": "通过/警告/不通过",
       "理由": "..."
     }
   ],
   "整体结论": "通过/需复核/不通过",
   "改进建议": "..."
-}`
+}`;
+        }
     },
 
     // ==================== 4.1 投标文件准备 ====================

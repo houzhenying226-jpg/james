@@ -596,6 +596,38 @@ function renderFormField(field) {
                     <input type="datetime-local" name="${field.key}" ${required}>
                 </div>
             `;
+        case 'radio':
+            // 处理单选按钮组
+            const radioOptions = field.options || [];
+            const radioHtml = radioOptions.map((opt, idx) => `
+                <label class="radio-option">
+                    <input type="radio" name="${field.key}" value="${opt}" ${idx === 0 ? '' : ''}>
+                    ${opt}
+                </label>
+            `).join('');
+            return `
+                <div class="form-group">
+                    <label>${field.label}${requiredMark}</label>
+                    <div class="radio-group">${radioHtml}</div>
+                </div>
+            `;
+        case 'select':
+            // 处理下拉选择
+            const selectOptions = (field.options || []).map(opt =>
+                `<option value="${opt}">${opt}</option>`
+            ).join('');
+            return `
+                <div class="form-group">
+                    <label>${field.label}${requiredMark}</label>
+                    <select name="${field.key}" ${required}>
+                        <option value="">请选择</option>
+                        ${selectOptions}
+                    </select>
+                </div>
+            `;
+        case 'list':
+            // 处理列表类型（如评委列表）
+            return renderListField(field);
         default:
             return `
                 <div class="form-group">
@@ -604,6 +636,173 @@ function renderFormField(field) {
                 </div>
             `;
     }
+}
+
+/**
+ * 渲染列表类型字段（如评委列表）
+ */
+function renderListField(field) {
+    const key = field.key;
+    const label = field.label;
+    const requiredMark = field.required ? ' *' : '';
+    const itemFields = field.itemFields || [];
+
+    // 生成表头
+    const headers = itemFields.map(f => `<th>${f.label}</th>`).join('');
+
+    return `
+        <div class="form-group list-field" data-list-key="${key}">
+            <label>${label}${requiredMark}</label>
+            <div class="list-table-wrapper">
+                <table class="list-table" id="listTable_${key}">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            ${headers}
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listBody_${key}">
+                        <!-- 动态添加行 -->
+                    </tbody>
+                </table>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addListItem('${key}')">
+                    + 添加${label.replace('列表', '')}
+                </button>
+            </div>
+            <input type="hidden" name="${key}" id="listData_${key}" value="[]">
+        </div>
+    `;
+}
+
+// 存储列表字段配置
+const listFieldConfigs = {};
+
+/**
+ * 初始化列表字段配置
+ */
+function initListFieldConfig(key, itemFields) {
+    listFieldConfigs[key] = itemFields;
+}
+
+/**
+ * 添加列表项
+ */
+function addListItem(key) {
+    const tbody = document.getElementById(`listBody_${key}`);
+    if (!tbody) return;
+
+    // 从task-templates.js获取配置，或使用默认评委字段
+    const itemFields = listFieldConfigs[key] || getDefaultJuryFields();
+    const rowIndex = tbody.children.length + 1;
+
+    const row = document.createElement('tr');
+    row.dataset.index = rowIndex - 1;
+
+    let cells = `<td class="row-number">${rowIndex}</td>`;
+
+    itemFields.forEach(field => {
+        cells += renderListItemCell(field, key, rowIndex - 1);
+    });
+
+    cells += `<td><button type="button" class="btn btn-danger btn-xs" onclick="removeListItem('${key}', this)">删除</button></td>`;
+
+    row.innerHTML = cells;
+    tbody.appendChild(row);
+
+    // 更新隐藏字段
+    updateListData(key);
+
+    // 触发验证更新
+    setTimeout(updateValidationPreview, 50);
+}
+
+/**
+ * 渲染列表项单元格
+ */
+function renderListItemCell(field, listKey, rowIndex) {
+    const id = `${listKey}_${rowIndex}_${field.id}`;
+    const name = `${listKey}[${rowIndex}][${field.id}]`;
+
+    switch (field.type) {
+        case 'select':
+            const options = (field.options || []).map(opt =>
+                `<option value="${opt}">${opt}</option>`
+            ).join('');
+            return `<td><select id="${id}" name="${name}" onchange="updateListData('${listKey}')">
+                <option value="">请选择</option>${options}</select></td>`;
+        case 'radio':
+            const radios = (field.options || []).map(opt =>
+                `<label class="radio-inline"><input type="radio" name="${name}" value="${opt}" onchange="updateListData('${listKey}')">${opt}</label>`
+            ).join(' ');
+            return `<td class="radio-cell">${radios}</td>`;
+        default:
+            return `<td><input type="text" id="${id}" name="${name}" placeholder="${field.label}" onchange="updateListData('${listKey}')" onkeyup="updateListData('${listKey}')"></td>`;
+    }
+}
+
+/**
+ * 删除列表项
+ */
+function removeListItem(key, btn) {
+    const row = btn.closest('tr');
+    if (row) {
+        row.remove();
+        // 重新编号
+        const tbody = document.getElementById(`listBody_${key}`);
+        Array.from(tbody.children).forEach((row, idx) => {
+            row.querySelector('.row-number').textContent = idx + 1;
+            row.dataset.index = idx;
+        });
+        // 更新数据
+        updateListData(key);
+        setTimeout(updateValidationPreview, 50);
+    }
+}
+
+/**
+ * 更新列表数据到隐藏字段
+ */
+function updateListData(key) {
+    const tbody = document.getElementById(`listBody_${key}`);
+    const hiddenInput = document.getElementById(`listData_${key}`);
+    if (!tbody || !hiddenInput) return;
+
+    const itemFields = listFieldConfigs[key] || getDefaultJuryFields();
+    const data = [];
+
+    Array.from(tbody.children).forEach((row, rowIndex) => {
+        const item = {};
+        itemFields.forEach(field => {
+            const input = row.querySelector(`[name="${key}[${rowIndex}][${field.id}]"]`);
+            if (input) {
+                if (input.type === 'radio') {
+                    const checked = row.querySelector(`[name="${key}[${rowIndex}][${field.id}]"]:checked`);
+                    item[field.id] = checked ? checked.value : '';
+                } else {
+                    item[field.id] = input.value;
+                }
+            }
+        });
+        data.push(item);
+    });
+
+    hiddenInput.value = JSON.stringify(data);
+}
+
+/**
+ * 获取默认评委字段配置
+ */
+function getDefaultJuryFields() {
+    return [
+        { id: 'name', label: '姓名', type: 'text' },
+        { id: 'department', label: '部门', type: 'text' },
+        { id: 'position', label: '职位', type: 'text' },
+        { id: 'jury_type', label: '类型', type: 'select', options: ['技术评委', '商务评委', '采购评委', '领导评委'] },
+        { id: 'influence', label: '话语权', type: 'radio', options: ['高', '中', '低'] },
+        { id: 'relationship', label: '关系', type: 'radio', options: ['支持我方', '中立', '倾向竞品', '未知'] },
+        { id: 'our_contact', label: '维护人', type: 'text' }
+    ];
 }
 
 /**
@@ -796,6 +995,22 @@ function getFormData(form, config) {
             data[field.key] = input.checked;
         } else if (field.type === 'number') {
             data[field.key] = parseFloat(input.value) || 0;
+        } else if (field.type === 'list') {
+            // 处理列表类型：从隐藏字段获取JSON数据
+            const hiddenInput = document.getElementById(`listData_${field.key}`);
+            if (hiddenInput && hiddenInput.value) {
+                try {
+                    data[field.key] = JSON.parse(hiddenInput.value);
+                } catch (e) {
+                    data[field.key] = [];
+                }
+            } else {
+                data[field.key] = [];
+            }
+        } else if (field.type === 'radio') {
+            // 处理单选按钮组
+            const checked = form.querySelector(`input[name="${field.key}"]:checked`);
+            data[field.key] = checked ? checked.value : '';
         } else {
             data[field.key] = input.value;
         }
