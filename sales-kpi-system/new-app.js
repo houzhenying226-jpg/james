@@ -1435,6 +1435,180 @@ async function testApiConnection() {
     }
 }
 
+// ==================== AI全局一致性分析 ====================
+
+/**
+ * 获取项目的所有任务数据（用于全局分析）
+ */
+function getAllTasksDataForProject(projectId) {
+    const projectTasks = DataStorage.getProjectTasks(projectId);
+    const result = {};
+
+    TASK_CONFIG.forEach(config => {
+        const taskId = `${projectId}-${config.code}`;
+        const task = projectTasks[taskId];
+
+        if (task && task.versions && task.versions.length > 0) {
+            // 获取最新版本的数据
+            const bestVersion = task.versions.find(v => v.versionId === task.bestVersionId)
+                || task.versions[task.versions.length - 1];
+
+            result[config.code] = {
+                name: config.name,
+                fields: bestVersion.fields || {},
+                versionId: bestVersion.versionId,
+                createDate: bestVersion.createDate
+            };
+        }
+    });
+
+    return result;
+}
+
+/**
+ * 显示全局分析弹窗
+ */
+function showGlobalAnalysisModal() {
+    if (!currentProjectId) {
+        alert('请先选择一个项目');
+        return;
+    }
+
+    const project = DataStorage.getProject(currentProjectId);
+    if (!project) {
+        alert('项目不存在');
+        return;
+    }
+
+    const html = `
+        <div class="global-analysis-container">
+            <div class="analysis-info">
+                <p><strong>项目：</strong>${project.name}</p>
+                <p><strong>销售：</strong>${project.salesperson}</p>
+                <p><strong>阶段：</strong>${project.currentStage}</p>
+            </div>
+
+            <div class="analysis-actions">
+                <button id="globalAnalysisBtn" class="btn btn-primary" onclick="runGlobalAnalysis()">
+                    🔍 运行全局一致性分析
+                </button>
+            </div>
+
+            <div id="globalAnalysisResult" class="analysis-result"></div>
+        </div>
+    `;
+
+    document.getElementById('globalAnalysisModalTitle').textContent = '📊 AI全局一致性分析';
+    document.getElementById('globalAnalysisModalBody').innerHTML = html;
+    document.getElementById('globalAnalysisModal').classList.add('active');
+}
+
+/**
+ * 关闭全局分析弹窗
+ */
+function closeGlobalAnalysisModal() {
+    document.getElementById('globalAnalysisModal').classList.remove('active');
+}
+
+/**
+ * 运行全局分析
+ */
+async function runGlobalAnalysis() {
+    const btn = document.getElementById('globalAnalysisBtn');
+    const resultDiv = document.getElementById('globalAnalysisResult');
+
+    // 检查API Key
+    if (!GlobalAnalyzer.getApiKey()) {
+        resultDiv.innerHTML = `
+            <div class="global-analysis-error">
+                <span class="error-icon">⚠️</span>
+                <span class="error-message">请先在设置中配置Gemini API Key</span>
+            </div>
+        `;
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ 分析中...';
+    resultDiv.innerHTML = '<div class="loading-indicator">🔄 AI正在分析项目数据一致性，请稍候...</div>';
+
+    try {
+        // 获取项目数据
+        const project = DataStorage.getProject(currentProjectId);
+        const allTasksData = getAllTasksDataForProject(currentProjectId);
+
+        // 检查是否有任务数据
+        if (Object.keys(allTasksData).length === 0) {
+            resultDiv.innerHTML = `
+                <div class="global-analysis-error">
+                    <span class="error-icon">⚠️</span>
+                    <span class="error-message">该项目暂无任务数据，请先填写任务</span>
+                </div>
+            `;
+            btn.disabled = false;
+            btn.textContent = '🔍 运行全局一致性分析';
+            return;
+        }
+
+        // 调用AI分析
+        const result = await GlobalAnalyzer.analyzeProject(project, allTasksData);
+
+        // 渲染结果
+        resultDiv.innerHTML = GlobalAnalyzer.renderGlobalAnalysisResult(result);
+
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="global-analysis-error">
+                <span class="error-icon">❌</span>
+                <span class="error-message">分析失败：${error.message}</span>
+            </div>
+        `;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 运行全局一致性分析';
+    }
+}
+
+/**
+ * 运行版本演变分析
+ */
+async function runVersionAnalysis(taskCode) {
+    const config = getTaskConfig(taskCode);
+    const task = DataStorage.getTask(`${currentProjectId}-${taskCode}`);
+
+    if (!task || task.versions.length < 2) {
+        alert('至少需要2个版本才能进行演变分析');
+        return;
+    }
+
+    // 检查API Key
+    if (!GlobalAnalyzer.getApiKey()) {
+        alert('请先在设置中配置Gemini API Key');
+        return;
+    }
+
+    const resultDiv = document.createElement('div');
+    resultDiv.innerHTML = '<div class="loading-indicator">🔄 正在分析版本演变...</div>';
+    document.getElementById('historyModalBody').appendChild(resultDiv);
+
+    try {
+        const result = await GlobalAnalyzer.analyzeVersionChanges(
+            taskCode,
+            config.name,
+            task.versions
+        );
+
+        resultDiv.innerHTML = GlobalAnalyzer.renderVersionAnalysisResult(result);
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="version-analysis-error">
+                <span class="error-icon">❌</span>
+                <span class="error-message">分析失败：${error.message}</span>
+            </div>
+        `;
+    }
+}
+
 // ==================== 高级验证集成 ====================
 
 /**

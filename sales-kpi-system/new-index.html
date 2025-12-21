@@ -71,6 +71,11 @@
                         <button class="btn btn-back" onclick="exitWorkbench()">← 返回</button>
                         <h2 id="workbenchTitle">工作台</h2>
                     </div>
+                    <div class="workbench-actions">
+                        <button class="btn btn-secondary" onclick="showGlobalAnalysisModal()">
+                            📊 AI全局分析
+                        </button>
+                    </div>
                     <div class="workbench-score">
                         <span class="score-label">项目总分：</span>
                         <span class="score-value" id="workbenchScore">0</span>
@@ -217,6 +222,19 @@
         </div>
     </div>
 
+    <!-- ==================== 弹窗：AI全局分析 ==================== -->
+    <div id="globalAnalysisModal" class="modal-overlay">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="globalAnalysisModalTitle">AI全局一致性分析</h2>
+                <button class="modal-close" onclick="closeGlobalAnalysisModal()">×</button>
+            </div>
+            <div class="modal-body" id="globalAnalysisModalBody">
+                <!-- 动态生成分析内容 -->
+            </div>
+        </div>
+    </div>
+
     <!-- ==================== 弹窗：设置 ==================== -->
     <div id="settingsModal" class="modal-overlay">
         <div class="modal-content">
@@ -281,6 +299,7 @@
     <script src="score-engine.js"></script>
     <script src="ai-validator.js"></script>
     <script src="validation-engine.js"></script>
+    <script src="global-analyzer.js"></script>
     <script src="test-data.js"></script>
     <script src="new-app.js"></script>
 </body>
