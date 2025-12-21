@@ -242,7 +242,7 @@ const ValidationEngine = {
         if (options.enableAI && this.isAIEnabled()) {
             result.aiValidation.enabled = true;
             try {
-                result.aiValidation = await this.validateWithAI(taskCode, fields);
+                result.aiValidation = await this.validateWithAI(taskCode, fields, options.projectId);
             } catch (error) {
                 result.aiValidation.error = error.message;
                 result.aiValidation.passed = true; // AI失败不阻塞
@@ -352,14 +352,86 @@ const ValidationEngine = {
     },
 
     /**
-     * 第三层：AI验证
+     * 第三层：AI验证（使用新版AI_PROMPTS）
+     * @param {string} taskCode - 任务编号
+     * @param {object} fields - 当前任务数据
+     * @param {string} projectId - 项目ID（用于获取关联任务数据）
      */
-    async validateWithAI(taskCode, fields) {
+    async validateWithAI(taskCode, fields, projectId) {
+        console.log('=== AI验证开始 ===', { taskCode, projectId });
+
+        // 优先使用新版AI_PROMPTS
+        if (typeof AIValidator !== 'undefined' && AIValidator.hasTaskConfig(taskCode)) {
+            console.log(`任务${taskCode}使用新版AI验证`);
+
+            // 收集关联任务数据
+            const relatedTasksData = {};
+            if (projectId) {
+                // 根据任务获取需要的关联数据
+                const relatedTaskCodes = this.getRelatedTaskCodes(taskCode);
+                console.log(`任务${taskCode}的关联任务:`, relatedTaskCodes);
+
+                for (const refCode of relatedTaskCodes) {
+                    const refTaskId = `${projectId}-${refCode}`;
+                    const refTask = DataStorage.getTask(refTaskId);
+                    if (refTask && refTask.versions.length > 0) {
+                        const bestVersion = refTask.versions.find(v => v.versionId === refTask.bestVersionId);
+                        relatedTasksData[refCode] = bestVersion?.fields || {};
+                    }
+                }
+                console.log('收集到的关联数据:', Object.keys(relatedTasksData));
+            }
+
+            try {
+                const result = await AIValidator.validateTask(taskCode, fields, relatedTasksData);
+                console.log('AI验证结果:', result);
+
+                if (result.error) {
+                    return {
+                        enabled: true,
+                        passed: true,
+                        checks: [{
+                            id: 'ai_error',
+                            label: 'AI验证',
+                            passed: true,
+                            message: result.message,
+                            severity: 'info'
+                        }]
+                    };
+                }
+
+                return {
+                    enabled: true,
+                    passed: result.passed,
+                    needReview: result.needReview,
+                    checks: result.checks || [],
+                    suggestion: result.suggestion,
+                    confidence: result.confidence
+                };
+            } catch (error) {
+                console.error('AI验证异常:', error);
+                return {
+                    enabled: true,
+                    passed: true,
+                    checks: [{
+                        id: 'ai_error',
+                        label: 'AI验证',
+                        passed: true,
+                        message: `AI验证跳过: ${error.message}`,
+                        severity: 'info'
+                    }]
+                };
+            }
+        }
+
+        // 回退：使用旧版aiRules（向后兼容）
         const aiRules = TASK_RULES[taskCode]?.aiRules || [];
         if (aiRules.length === 0) {
+            console.log(`任务${taskCode}无AI验证配置`);
             return { enabled: true, passed: true, checks: [] };
         }
 
+        console.log(`任务${taskCode}使用旧版AI验证规则`);
         const checks = [];
         let allPassed = true;
 
@@ -387,6 +459,30 @@ const ValidationEngine = {
         }
 
         return { enabled: true, passed: allPassed, checks };
+    },
+
+    /**
+     * 获取任务的关联任务列表（用于AI验证）
+     */
+    getRelatedTaskCodes(taskCode) {
+        const relatedMap = {
+            '1.2': ['1.1'],
+            '1.3': [],
+            '1.4': [],
+            '2.1': ['1.1'],
+            '2.2': ['2.1'],
+            '2.3': ['1.2'],
+            '3.1': ['2.3'],
+            '3.2': ['2.2'],
+            '3.3': [],
+            '4.1': ['1.4', '2.2'],
+            '4.2': ['1.2'],
+            '4.3': ['1.1', '4.1'],
+            '5.1': ['1.3'],
+            '6.1': ['4.1', '4.3'],
+            '7.1': ['6.1']
+        };
+        return relatedMap[taskCode] || [];
     },
 
     /**
