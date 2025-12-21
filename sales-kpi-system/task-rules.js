@@ -1543,9 +1543,46 @@ const TASK_RULES = {
                 id: 'cross_solution_sample',
                 label: '样品与方案一致',
                 refTaskCode: '2.2',
-                validate: (curr, ref) => true,
-                passMessage: '样品与方案推荐一致',
-                failMessage: '建议确认样品是否来自方案推荐',
+                validate: (curr, ref) => {
+                    console.log('=== 3.2关联验证: 样品与方案一致 ===');
+
+                    // 获取样品列表
+                    const sampleList = curr.sampleList || curr.样品列表 || '';
+                    if (!sampleList || sampleList.trim().length < 10) {
+                        console.log('样品列表未填写或过短');
+                        return null; // 待验证
+                    }
+
+                    // 获取2.2方案
+                    const technicalPlan = ref?.technicalPlan || ref?.solutionDescription || ref?.技术方案 || '';
+                    if (!technicalPlan || technicalPlan.trim().length < 10) {
+                        console.log('2.2方案未填写');
+                        return null; // 待验证
+                    }
+
+                    // 提取样品中的关键词（产品类型）
+                    const productKeywords = ['西服', '西装', '衬衫', '裤', '工装', '制服', '外套', '大衣', '夹克'];
+                    const sampleProducts = productKeywords.filter(kw => sampleList.includes(kw));
+                    const planProducts = productKeywords.filter(kw => technicalPlan.includes(kw));
+
+                    console.log('样品产品:', sampleProducts);
+                    console.log('方案产品:', planProducts);
+
+                    // 如果样品中的产品类型在方案中都有提及
+                    if (sampleProducts.length > 0) {
+                        const covered = sampleProducts.filter(p => planProducts.includes(p));
+                        if (covered.length >= sampleProducts.length * 0.5) {
+                            return true;
+                        }
+                        return false;
+                    }
+
+                    // 无法判断，返回通过（避免误报）
+                    return true;
+                },
+                passMessage: '✓ 样品与方案推荐一致',
+                failMessage: '⚠️ 样品品类与2.2方案不一致，请核实',
+                pendingMessage: '⏳ 请先填写样品列表或完成2.2方案，再验证一致性',
                 severity: 'warning'
             }
         ],
@@ -1648,9 +1685,52 @@ const TASK_RULES = {
                 id: 'cross_competitor_comparison',
                 label: '对比竞品信息',
                 refTaskCode: '1.3',
-                validate: (curr, ref) => true,
-                passMessage: '对比结果与竞争分析一致',
-                failMessage: '请核实对比结果与竞争分析的一致性',
+                validate: (curr, ref) => {
+                    console.log('=== 3.3关联验证: 对比竞品信息 ===');
+
+                    // 获取对比维度/结果
+                    const comparison = curr.comparisonDimensions || curr.comparisonResult || curr.对比维度 || '';
+                    if (!comparison || comparison.trim().length < 10) {
+                        console.log('对比信息未填写');
+                        return null; // 待验证
+                    }
+
+                    // 获取1.3竞争对手信息
+                    const competitorList = ref?.competitorList || ref?.competitorAnalysis || ref?.竞争对手列表 || '';
+                    if (!competitorList || competitorList.trim().length < 10) {
+                        console.log('1.3竞争对手未填写');
+                        return null; // 待验证
+                    }
+
+                    // 提取竞争对手公司名（中文2-6字）
+                    const companyNames = competitorList.match(/[\u4e00-\u9fa5]{2,6}(公司|集团|服装|制衣)/g) || [];
+                    console.log('竞争对手公司:', companyNames);
+
+                    // 检查对比中是否提到竞争对手
+                    if (companyNames.length > 0) {
+                        const mentioned = companyNames.some(name => {
+                            const shortName = name.replace(/(公司|集团|服装|制衣)$/, '');
+                            return comparison.includes(shortName) || comparison.includes(name);
+                        });
+                        if (mentioned) {
+                            return true;
+                        }
+                        // 也可能用"竞品A""对手1"等代称
+                        if (comparison.includes('竞品') || comparison.includes('对手') || comparison.includes('竞争')) {
+                            return true;
+                        }
+                    }
+
+                    // 如果1.3没有具体公司名，只要有对比内容就算通过
+                    if (companyNames.length === 0 && comparison.length >= 20) {
+                        return true;
+                    }
+
+                    return false;
+                },
+                passMessage: '✓ 对比结果与竞争分析一致',
+                failMessage: '⚠️ 对比内容未体现1.3分析的竞争对手，请核实',
+                pendingMessage: '⏳ 请先填写对比信息或完成1.3竞争分析，再验证一致性',
                 severity: 'warning'
             }
         ],
@@ -1759,18 +1839,96 @@ const TASK_RULES = {
                 id: 'cross_standard_bid',
                 label: '包含植入标准',
                 refTaskCode: '1.4',
-                validate: (curr, ref) => true,
-                passMessage: '技术标已包含植入标准',
-                failMessage: '建议确认技术标是否包含1.4植入的标准',
+                validate: (curr, ref) => {
+                    console.log('=== 4.1关联验证: 包含植入标准 ===');
+
+                    // 获取技术标说明
+                    const techDesc = curr.technicalDescription || curr.technicalBidDescription || curr.技术标说明 || '';
+                    if (!techDesc || techDesc.trim().length < 10) {
+                        console.log('技术标说明未填写');
+                        return null; // 待验证
+                    }
+
+                    // 获取1.4植入标准
+                    const standards = ref?.technicalStandards || ref?.standardContent || ref?.植入内容 || ref?.植入标准内容 || '';
+                    if (!standards || standards.trim().length < 10) {
+                        console.log('1.4植入标准未填写');
+                        return null; // 待验证
+                    }
+
+                    // 提取技术参数关键词
+                    const techKeywords = ['克重', '色牢度', '缩水率', '起毛起球', '成分', '含量',
+                                         '透气', '防水', '阻燃', '抗皱', '免烫', '耐磨'];
+
+                    // 检查1.4提到的参数是否在技术标中有体现
+                    const standardParams = techKeywords.filter(kw => standards.includes(kw));
+                    console.log('1.4提到的参数:', standardParams);
+
+                    if (standardParams.length > 0) {
+                        const covered = standardParams.filter(p => techDesc.includes(p));
+                        console.log('技术标覆盖的参数:', covered);
+
+                        // 至少覆盖一半的参数
+                        if (covered.length >= standardParams.length * 0.5) {
+                            return true;
+                        }
+                        return false;
+                    }
+
+                    // 如果1.4没有具体参数，只要有技术描述就算通过
+                    return true;
+                },
+                passMessage: '✓ 技术标已包含植入标准',
+                failMessage: '⚠️ 技术标未体现1.4植入的标准参数，请核实',
+                pendingMessage: '⏳ 请先填写技术标说明或完成1.4标准植入，再验证一致性',
                 severity: 'warning'
             },
             {
                 id: 'cross_price_solution',
                 label: '价格与方案一致',
                 refTaskCode: '2.2',
-                validate: (curr, ref) => true,
-                passMessage: '报价与方案价格一致',
-                failMessage: '建议核实报价与2.2价格方案的一致性',
+                validate: (curr, ref) => {
+                    console.log('=== 4.1关联验证: 价格与方案一致 ===');
+
+                    // 获取报价金额
+                    const bidPrice = parseFloat(curr.bidPrice || curr.报价金额 || 0);
+                    if (!bidPrice || bidPrice <= 0) {
+                        console.log('报价金额未填写');
+                        return null; // 待验证
+                    }
+
+                    // 获取2.2方案价格
+                    const pricingPlan = ref?.pricingPlan || ref?.价格方案 || ref?.价格方案描述 || '';
+                    if (!pricingPlan || pricingPlan.trim().length < 5) {
+                        console.log('2.2价格方案未填写');
+                        return null; // 待验证
+                    }
+
+                    // 尝试从方案中提取金额
+                    const priceMatches = pricingPlan.match(/(\d+\.?\d*)\s*万/g);
+                    console.log('方案中的金额:', priceMatches);
+
+                    if (priceMatches && priceMatches.length > 0) {
+                        // 取最大金额作为方案总价
+                        const planPrices = priceMatches.map(m => parseFloat(m.replace('万', '')));
+                        const maxPlanPrice = Math.max(...planPrices);
+                        console.log(`报价: ${bidPrice}万, 方案最大金额: ${maxPlanPrice}万`);
+
+                        // 偏差在±20%内
+                        const deviation = Math.abs(bidPrice - maxPlanPrice) / maxPlanPrice;
+                        if (deviation <= 0.20) {
+                            return true;
+                        }
+                        console.log(`偏差: ${(deviation * 100).toFixed(1)}%`);
+                        return false;
+                    }
+
+                    // 无法提取方案价格，默认通过
+                    return true;
+                },
+                passMessage: '✓ 报价与方案价格一致（偏差≤20%）',
+                failMessage: '⚠️ 报价与2.2方案价格偏差>20%，请核实原因',
+                pendingMessage: '⏳ 请先填写报价金额或完成2.2价格方案，再验证一致性',
                 severity: 'warning'
             }
         ],
@@ -1881,9 +2039,56 @@ const TASK_RULES = {
                 id: 'cross_decision_technical',
                 label: '客户含技术决策人',
                 refTaskCode: '1.2',
-                validate: (curr, ref) => true,
-                passMessage: '客户方有技术负责人参会',
-                failMessage: '建议确认客户方是否有技术决策人参会',
+                validate: (curr, ref) => {
+                    console.log('=== 4.2关联验证: 客户含技术决策人 ===');
+
+                    // 获取客户参会人
+                    const attendees = curr.customerAttendees || curr.客户参会人 || '';
+                    if (!attendees || attendees.trim().length < 5) {
+                        console.log('客户参会人未填写');
+                        return null; // 待验证
+                    }
+
+                    // 获取1.2决策链
+                    const keyPersonList = ref?.keyPersonList || ref?.决策链 || '';
+                    if (!keyPersonList || keyPersonList.trim().length < 5) {
+                        console.log('1.2决策链未填写');
+                        return null; // 待验证
+                    }
+
+                    // 提取参会人姓名（中文2-3字）
+                    const attendeeNames = attendees.match(/[\u4e00-\u9fa5]{2,3}/g) || [];
+                    console.log('参会人姓名:', attendeeNames);
+
+                    // 提取决策链人员
+                    const keyPersonNames = keyPersonList.match(/[\u4e00-\u9fa5]{2,3}/g) || [];
+                    console.log('决策链人员:', keyPersonNames);
+
+                    // 技术相关职位关键词
+                    const techPositions = ['技术', '工程', '研发', '质量', 'IT', '信息', '生产', '工艺'];
+
+                    // 检查参会人是否有技术相关人员
+                    const hasTechPerson = techPositions.some(pos =>
+                        attendees.includes(pos) || keyPersonList.includes(pos)
+                    );
+
+                    // 检查参会人是否在决策链中
+                    const inDecisionChain = attendeeNames.some(name =>
+                        keyPersonNames.includes(name)
+                    );
+
+                    console.log(`有技术人员: ${hasTechPerson}, 在决策链中: ${inDecisionChain}`);
+
+                    // 有技术人员 或 在决策链中都算通过
+                    if (hasTechPerson || inDecisionChain) {
+                        return true;
+                    }
+
+                    return false;
+                },
+                passMessage: '✓ 客户方有技术负责人或决策人参会',
+                failMessage: '⚠️ 参会人不在决策链中，且无技术相关人员，请核实',
+                pendingMessage: '⏳ 请先填写客户参会人或完成1.2决策链，再验证',
                 severity: 'warning'
             }
         ],
