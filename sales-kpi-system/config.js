@@ -3,7 +3,7 @@
  * 北京北方努派服装公司
  */
 
-// 16个销售任务配置
+// 17个销售任务配置（含4.0）
 const TASKS = [
     { id: '1.1', name: 'MAN分析与项目立项', stage: '接触', weight: 3.0 },
     { id: '1.2', name: '决策链地图绘制', stage: '接触', weight: 2.5 },
@@ -15,6 +15,7 @@ const TASKS = [
     { id: '3.1', name: '决策链地图深化', stage: '深入', weight: 2.0 },
     { id: '3.2', name: '样品准备与现场展示', stage: '深入', weight: 2.5 },
     { id: '3.3', name: '竞品方案对比展示', stage: '深入', weight: 2.5 },
+    { id: '4.0', name: '招标情报与评委布局', stage: '执行', weight: 4.0 },
     { id: '4.1', name: '最终方案优化与提交', stage: '执行', weight: 2.5 },
     { id: '4.2', name: '入围确认与竞品信息跟踪', stage: '执行', weight: 2.0 },
     { id: '4.3', name: '投标策略制定与投标文件准备', stage: '执行', weight: 2.5 },
