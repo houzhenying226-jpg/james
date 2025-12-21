@@ -492,26 +492,63 @@ const TASK_RULES = {
                 label: '决策人在决策链中',
                 refTaskCode: '1.2',
                 validate: (curr, ref) => {
-                    // 检查任务1.2是否已完成
+                    console.log('=== 1.1关联验证: 决策人在决策链中 ===');
+                    console.log('当前任务数据:', curr);
+                    console.log('关联任务1.2数据:', ref);
+
+                    // 1. 检查当前任务的决策人描述
+                    const nDesc = curr.nDescription || curr.N_描述 || curr.N_决策人描述 || '';
+                    console.log('N描述:', nDesc);
+
+                    // 如果N描述为空或太短，返回待验证状态
+                    if (!nDesc || nDesc.trim().length < 3) {
+                        console.log('N描述为空或太短，返回待验证');
+                        return null;  // 返回null表示待验证
+                    }
+
+                    // 2. 检查任务1.2是否已完成
                     if (!ref || !ref.keyPersonList) {
-                        // 1.2未完成时返回null表示待验证
+                        console.log('1.2未填写关键人列表，返回待验证');
                         return null;
                     }
-                    // 检查N决策人是否在决策链名单中
-                    const nDesc = curr.nDescription || '';
-                    if (!nDesc) return true; // 没有填写决策人描述，跳过检查
 
+                    // 3. 提取N描述中的人名（中文姓名通常2-4个字）
+                    const namePattern = /[\u4e00-\u9fa5]{2,4}(?=[部长|总监|经理|主任|总|科长|处长|董事|老板|负责人]|$)/g;
+                    const possibleNames = nDesc.match(namePattern) || [];
+
+                    // 也尝试直接提取2-3字的连续中文
+                    const simpleNames = nDesc.match(/[\u4e00-\u9fa5]{2,3}/g) || [];
+
+                    // 合并去重
+                    const allNames = [...new Set([...possibleNames, ...simpleNames])];
+                    console.log('提取的可能姓名:', allNames);
+
+                    if (allNames.length === 0) {
+                        console.log('未能提取有效人名');
+                        return null;
+                    }
+
+                    // 4. 获取1.2中的关键人名单
                     const keyPersons = ref.keyPersonList.toLowerCase();
-                    // 简单检查：决策人描述中的关键词是否出现在决策链中
-                    const words = nDesc.split(/[,，、\s()（）]+/).filter(w => w.length >= 2);
-                    const found = words.some(word =>
-                        keyPersons.includes(word.toLowerCase())
+                    console.log('关键人列表:', keyPersons);
+
+                    // 5. 检查是否有匹配
+                    const foundNames = allNames.filter(name =>
+                        keyPersons.includes(name.toLowerCase())
                     );
-                    return found;
+                    console.log('匹配的姓名:', foundNames);
+
+                    if (foundNames.length > 0) {
+                        console.log('验证通过');
+                        return true;
+                    }
+
+                    console.log('验证失败 - 决策人不在名单中');
+                    return false;
                 },
                 passMessage: '✓ 决策人在决策链名单中',
-                failMessage: '决策人不在1.2决策链名单中，建议核实',
-                pendingMessage: '⚠️ 决策链(1.2)未填写，完成后可验证关联性',
+                failMessage: '⚠️ N(决策人)描述中的人名不在1.2决策链名单中，请核实',
+                pendingMessage: '⏳ 请先填写N(决策人)描述或完成1.2决策链，再验证关联性',
                 severity: 'warning'
             }
         ],
@@ -626,13 +663,38 @@ const TASK_RULES = {
                 label: '与MAN分析一致性',
                 refTaskCode: '1.1',
                 validate: (curr, ref) => {
-                    // 决策链中的决策人应与MAN中的N对应
-                    if (!ref || !ref.nDescription) return true;
-                    // 简化验证，AI会做更深入检查
-                    return true;
+                    console.log('=== 1.2关联验证: 与MAN分析一致性 ===');
+
+                    // 检查当前任务的关键人列表
+                    const keyPersonList = curr.keyPersonList || '';
+                    if (!keyPersonList || keyPersonList.trim().length < 5) {
+                        return null; // 待验证
+                    }
+
+                    // 检查1.1的N描述
+                    const nDesc = ref?.nDescription || ref?.N_描述 || '';
+                    if (!nDesc || nDesc.trim().length < 3) {
+                        return null; // 1.1未填写，待验证
+                    }
+
+                    // 提取N描述中的人名
+                    const nameMatches = nDesc.match(/[\u4e00-\u9fa5]{2,3}/g) || [];
+                    console.log('1.1中的人名:', nameMatches);
+
+                    // 检查是否在关键人列表中
+                    const foundNames = nameMatches.filter(name =>
+                        keyPersonList.includes(name)
+                    );
+
+                    if (foundNames.length > 0) {
+                        return true;
+                    }
+
+                    return false;
                 },
-                passMessage: '与MAN分析中的决策人一致',
-                failMessage: '请确认决策链是否包含MAN分析中确认的决策人',
+                passMessage: '✓ 决策链包含MAN分析中的决策人',
+                failMessage: '⚠️ 1.1中的决策人未在决策链中，请核实',
+                pendingMessage: '⏳ 请先完成1.1的N描述，再验证一致性',
                 severity: 'warning'
             }
         ],
@@ -957,12 +1019,40 @@ const TASK_RULES = {
                 label: '需求与MAN一致性',
                 refTaskCode: '1.1',
                 validate: (curr, ref) => {
-                    if (!ref || !ref.mDescription) return true;
-                    // 简化验证，AI会做更深入检查
-                    return true;
+                    console.log('=== 2.1关联验证: 需求与MAN一致性 ===');
+
+                    // 获取当前任务的需求列表
+                    const reqList = curr.requirementList || curr.keyRequirements || curr.需求列表 || '';
+                    if (!reqList || reqList.trim().length < 10) {
+                        return null; // 待验证
+                    }
+
+                    // 获取1.1的M描述
+                    const mDesc = ref?.mDescription || ref?.M_描述 || '';
+                    if (!mDesc || mDesc.trim().length < 5) {
+                        return null; // 1.1未填写
+                    }
+
+                    // 提取关键词进行匹配
+                    const keywords = ['西服', '衬衫', '工装', '套', '件', '条', '制服', '职业装'];
+                    const mKeywords = keywords.filter(k => mDesc.includes(k));
+                    const reqKeywords = keywords.filter(k => reqList.includes(k));
+
+                    console.log('1.1关键词:', mKeywords);
+                    console.log('2.1关键词:', reqKeywords);
+
+                    // 检查是否有重叠
+                    const overlap = mKeywords.some(k => reqKeywords.includes(k));
+
+                    if (overlap || mKeywords.length === 0) {
+                        return true;
+                    }
+
+                    return false;
                 },
-                passMessage: '需求与MAN分析一致',
-                failMessage: '请核实需求与MAN分析中描述的需求是否一致',
+                passMessage: '✓ 需求调研与MAN分析中的需求一致',
+                failMessage: '⚠️ 2.1需求内容与1.1中描述的需求不一致，请核实',
+                pendingMessage: '⏳ 请先完成1.1的M描述，再验证一致性',
                 severity: 'warning'
             }
         ],
@@ -1173,12 +1263,40 @@ const TASK_RULES = {
                 label: '参会人在决策链中',
                 refTaskCode: '1.2',
                 validate: (curr, ref) => {
-                    if (!ref || !ref.keyPersonList) return true;
-                    // 简化验证，AI会做更深入检查
-                    return true;
+                    console.log('=== 2.3关联验证: 参会人在决策链中 ===');
+
+                    // 获取参会人
+                    const attendees = curr.attendees || curr.参会人员 || curr.客户参会人 || '';
+                    if (!attendees || attendees.trim().length < 2) {
+                        return null; // 待验证
+                    }
+
+                    // 获取1.2决策链
+                    if (!ref || !ref.keyPersonList) {
+                        return null; // 1.2未填写
+                    }
+
+                    // 提取参会人中的人名
+                    const attendeeNames = attendees.match(/[\u4e00-\u9fa5]{2,3}/g) || [];
+                    console.log('参会人姓名:', attendeeNames);
+
+                    // 检查是否在决策链中
+                    const chainPersons = ref.keyPersonList.toLowerCase();
+                    const foundNames = attendeeNames.filter(name =>
+                        chainPersons.includes(name.toLowerCase())
+                    );
+
+                    console.log('匹配的姓名:', foundNames);
+
+                    if (foundNames.length > 0) {
+                        return true;
+                    }
+
+                    return false;
                 },
-                passMessage: '参会人与决策链一致',
-                failMessage: '建议确认参会人是否在决策链名单中',
+                passMessage: '✓ 参会人在决策链名单中',
+                failMessage: '⚠️ 参会人不在1.2决策链名单中，建议邀请关键决策人',
+                pendingMessage: '⏳ 请先完成1.2决策链，再验证参会人',
                 severity: 'warning'
             }
         ],
@@ -1283,12 +1401,37 @@ const TASK_RULES = {
                 label: '修改响应问题',
                 refTaskCode: '2.3',
                 validate: (curr, ref) => {
-                    if (!ref || !ref.feedbackList) return true;
-                    // 简化验证，AI会做更深入检查
-                    return true;
+                    console.log('=== 3.1关联验证: 修改响应问题 ===');
+
+                    // 获取修改列表
+                    const modifyList = curr.modifyList || curr.changesDescription || curr.修改列表 || '';
+                    if (!modifyList || modifyList.trim().length < 5) {
+                        return null; // 待验证
+                    }
+
+                    // 获取2.3的问题列表
+                    const feedbackList = ref?.feedbackList || ref?.feedbackSummary || ref?.问题列表 || '';
+                    if (!feedbackList || feedbackList.trim().length < 5) {
+                        return null; // 2.3未填写
+                    }
+
+                    // 统计数量进行比较
+                    const modifyItems = modifyList.split(/[,，;；\n、\d+\.]+/).filter(i => i.trim().length > 2);
+                    const feedbackItems = feedbackList.split(/[,，;；\n、\d+\.]+/).filter(i => i.trim().length > 2);
+
+                    console.log('修改项数:', modifyItems.length);
+                    console.log('问题项数:', feedbackItems.length);
+
+                    // 修改数应该≥问题数
+                    if (modifyItems.length >= feedbackItems.length) {
+                        return true;
+                    }
+
+                    return false;
                 },
-                passMessage: '方案修改已响应客户问题',
-                failMessage: '请确保修改内容针对2.3收集的问题进行',
+                passMessage: '✓ 方案修改已充分响应客户问题',
+                failMessage: '⚠️ 修改数量少于2.3收集的问题数量，可能有遗漏',
+                pendingMessage: '⏳ 请先完成2.3方案讲解，再验证响应情况',
                 severity: 'warning'
             }
         ],
@@ -2176,17 +2319,46 @@ const TASK_RULES = {
         crossRefs: [
             {
                 id: 'cross_price_comparison',
-                label: '价格对比分析',
+                label: '价格与商务交流一致',
                 refTaskCode: '4.3',
                 validate: (curr, ref) => {
-                    if (!ref || !ref.priceRange) return true;
-                    // 最终价格应在商务交流确认的区间内
-                    const finalPrice = parseFloat(curr.finalPrice) || 0;
-                    // 简化验证，AI会做更深入检查
-                    return finalPrice > 0;
+                    console.log('=== 6.1关联验证: 价格与商务交流一致 ===');
+
+                    // 获取最终价格
+                    const finalPrice = parseFloat(curr.finalPrice || curr.最终价格 || 0);
+                    if (!finalPrice || finalPrice <= 0) {
+                        return null; // 待验证
+                    }
+
+                    // 获取4.3的价格区间
+                    const priceRange = ref?.priceRange || ref?.价格区间 || ref?.priceNegotiation || '';
+                    if (!priceRange) {
+                        return null; // 4.3未填写
+                    }
+
+                    // 从价格区间提取数字
+                    const numbers = priceRange.match(/[\d.]+/g)?.map(Number).filter(n => n > 0) || [];
+                    console.log('4.3价格区间数字:', numbers);
+
+                    if (numbers.length === 0) {
+                        return null; // 无法提取价格
+                    }
+
+                    const minPrice = Math.min(...numbers);
+                    const maxPrice = Math.max(...numbers);
+
+                    console.log(`最终价格: ${finalPrice}, 区间: ${minPrice}-${maxPrice}`);
+
+                    // 允许20%的偏差
+                    if (finalPrice >= minPrice * 0.8 && finalPrice <= maxPrice * 1.2) {
+                        return true;
+                    }
+
+                    return false;
                 },
-                passMessage: '最终价格与商务交流结果一致',
-                failMessage: '请核实最终价格与商务交流价格区间的关系',
+                passMessage: '✓ 最终价格在商务交流确认的区间内',
+                failMessage: '⚠️ 最终价格与4.3商务交流的价格区间差异较大，请核实',
+                pendingMessage: '⏳ 请先完成4.3商务交流，再验证价格一致性',
                 severity: 'warning'
             },
             {
@@ -2194,14 +2366,39 @@ const TASK_RULES = {
                 label: '与投标价格对比',
                 refTaskCode: '4.1',
                 validate: (curr, ref) => {
-                    const finalPrice = parseFloat(curr.finalPrice) || 0;
-                    const bidPrice = parseFloat(ref?.bidPrice) || 0;
-                    if (bidPrice === 0 || finalPrice === 0) return true;
-                    // 最终价格不应低于投标价格的70%
-                    return finalPrice >= bidPrice * 0.7;
+                    console.log('=== 6.1关联验证: 与投标价格对比 ===');
+
+                    const finalPrice = parseFloat(curr.finalPrice || curr.最终价格 || 0);
+                    if (!finalPrice || finalPrice <= 0) {
+                        return null; // 待验证
+                    }
+
+                    const bidPrice = parseFloat(ref?.bidPrice || ref?.投标价格 || 0);
+                    if (!bidPrice || bidPrice <= 0) {
+                        return null; // 4.1未填写
+                    }
+
+                    console.log(`最终价格: ${finalPrice}, 投标价格: ${bidPrice}`);
+
+                    // 计算变化幅度
+                    const changePercent = ((bidPrice - finalPrice) / bidPrice * 100).toFixed(1);
+                    console.log(`价格变化: ${changePercent}%`);
+
+                    // 最终价格不应低于投标价格的70%（降幅不超过30%）
+                    // 最终价格不应高于投标价格的110%（涨幅不超过10%）
+                    if (finalPrice > bidPrice * 1.1) {
+                        return false; // 价格上涨超过10%，异常
+                    }
+
+                    if (finalPrice < bidPrice * 0.7) {
+                        return false; // 降价超过30%，异常
+                    }
+
+                    return true;
                 },
-                passMessage: '价格变动在合理范围内',
-                failMessage: '最终价格与投标价格差异较大（>30%），请核实',
+                passMessage: '✓ 价格变动在合理范围内（降幅≤30%）',
+                failMessage: '⚠️ 最终价格与投标价格差异过大，请核实原因',
+                pendingMessage: '⏳ 请先完成4.1投标文件，再验证价格变动',
                 severity: 'warning'
             }
         ],
@@ -2389,14 +2586,34 @@ const TASK_RULES = {
                 label: '金额一致性',
                 refTaskCode: '6.1',
                 validate: (curr, ref) => {
-                    const contractAmount = parseFloat(curr.contractAmount) || 0;
-                    const negotiatedPrice = parseFloat(ref?.finalPrice) || 0;
-                    if (negotiatedPrice === 0 || contractAmount === 0) return true;
+                    console.log('=== 7.1关联验证: 与谈判价格一致性 ===');
+
+                    const contractAmount = parseFloat(curr.contractAmount || curr.签约金额 || 0);
+                    if (!contractAmount || contractAmount <= 0) {
+                        return null; // 待验证
+                    }
+
+                    const negotiatedPrice = parseFloat(ref?.finalPrice || ref?.最终价格 || 0);
+                    if (!negotiatedPrice || negotiatedPrice <= 0) {
+                        return null; // 6.1未填写
+                    }
+
+                    console.log(`签约金额: ${contractAmount}, 谈判价格: ${negotiatedPrice}`);
+
                     const diff = Math.abs(contractAmount - negotiatedPrice) / negotiatedPrice;
-                    return diff <= 0.05;
+                    const diffPercent = (diff * 100).toFixed(1);
+                    console.log(`差异: ${diffPercent}%`);
+
+                    // 差异应≤5%
+                    if (diff <= 0.05) {
+                        return true;
+                    }
+
+                    return false;
                 },
-                passMessage: '合同金额与谈判价格一致（差异≤5%）',
-                failMessage: '合同金额与谈判价格差异超过5%，请核实',
+                passMessage: '✓ 签约金额与谈判价格一致（差异≤5%）',
+                failMessage: '⚠️ 签约金额与6.1谈判价格差异超过5%，请核实原因',
+                pendingMessage: '⏳ 请先完成6.1商务谈判，再验证金额一致性',
                 severity: 'warning'
             },
             {
@@ -2404,25 +2621,84 @@ const TASK_RULES = {
                 label: '付款条款一致性',
                 refTaskCode: '4.3',
                 validate: (curr, ref) => {
-                    // 付款条款应与商务交流确认的账期一致
-                    if (!ref || !ref.paymentTerms) return true;
-                    // 简化验证，AI会做更深入检查
-                    return true;
+                    console.log('=== 7.1关联验证: 付款条款一致性 ===');
+
+                    // 获取合同付款条款
+                    const contractTerms = curr.paymentTerms || curr.付款条款 || curr.账期 || '';
+                    if (!contractTerms || contractTerms.trim().length < 3) {
+                        return null; // 待验证
+                    }
+
+                    // 获取4.3商务交流的账期
+                    const commercialTerms = ref?.paymentTerms || ref?.账期 || ref?.付款方式 || '';
+                    if (!commercialTerms || commercialTerms.trim().length < 3) {
+                        return null; // 4.3未填写账期
+                    }
+
+                    // 提取付款比例数字进行比较
+                    const contractNumbers = contractTerms.match(/\d+/g)?.map(Number) || [];
+                    const commercialNumbers = commercialTerms.match(/\d+/g)?.map(Number) || [];
+
+                    console.log('合同条款数字:', contractNumbers);
+                    console.log('商务协商数字:', commercialNumbers);
+
+                    // 如果提取不到数字，交给AI验证
+                    if (contractNumbers.length === 0 || commercialNumbers.length === 0) {
+                        return true; // 无法自动验证，默认通过，交给AI
+                    }
+
+                    // 检查主要付款比例是否一致
+                    const mainRatioMatch = contractNumbers.some(n =>
+                        commercialNumbers.includes(n)
+                    );
+
+                    return mainRatioMatch;
                 },
-                passMessage: '付款条款与商务协商一致',
-                failMessage: '请核实付款条款与商务交流中确认的账期是否一致',
+                passMessage: '✓ 付款条款与商务协商一致',
+                failMessage: '⚠️ 付款条款与4.3商务协商的账期不一致，请核实',
+                pendingMessage: '⏳ 请先完成4.3商务交流，再验证付款条款',
                 severity: 'warning'
             },
             {
                 id: 'cross_project_amount',
-                label: '与项目金额对比',
+                label: '与预算对比',
                 refTaskCode: '1.1',
                 validate: (curr, ref) => {
-                    // 最终合同金额与项目立项时的预估可能有差异，但应在合理范围内
-                    return true; // AI会做更深入检查
+                    console.log('=== 7.1关联验证: 与项目预算对比 ===');
+
+                    const contractAmount = parseFloat(curr.contractAmount || curr.签约金额 || 0);
+                    if (!contractAmount || contractAmount <= 0) {
+                        return null; // 待验证
+                    }
+
+                    // 从1.1的A描述中提取预算金额
+                    const aDesc = ref?.aDescription || ref?.A_描述 || '';
+                    if (!aDesc) {
+                        return null; // 1.1未填写
+                    }
+
+                    // 提取金额数字
+                    const budgetNumbers = aDesc.match(/[\d.]+/g)?.map(Number).filter(n => n > 0) || [];
+                    console.log('预算描述中的数字:', budgetNumbers);
+
+                    if (budgetNumbers.length === 0) {
+                        return null; // 无法提取预算
+                    }
+
+                    // 取最大的数字作为预算
+                    const budget = Math.max(...budgetNumbers);
+                    console.log(`签约金额: ${contractAmount}, 预算: ${budget}`);
+
+                    // 签约金额应在预算的50%-150%范围内
+                    if (contractAmount >= budget * 0.5 && contractAmount <= budget * 1.5) {
+                        return true;
+                    }
+
+                    return false;
                 },
-                passMessage: '合同金额与项目预估相符',
-                failMessage: '请核实合同金额与项目立项预估的差异',
+                passMessage: '✓ 签约金额在预算合理范围内',
+                failMessage: '⚠️ 签约金额与1.1项目预算差异较大，请核实',
+                pendingMessage: '⏳ 请先完成1.1 MAN分析的A描述，再验证预算',
                 severity: 'warning'
             }
         ],
