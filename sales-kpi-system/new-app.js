@@ -170,6 +170,9 @@ function refreshProjectsList() {
                         <button class="btn btn-primary" onclick="enterWorkbench('${project.id}')">
                             进入工作台
                         </button>
+                        <button class="btn btn-secondary" onclick="showVisitsPanel('${project.id}')">
+                            📋 拜访
+                        </button>
                         <button class="btn btn-secondary" onclick="editProject('${project.id}')">
                             编辑
                         </button>
@@ -1874,4 +1877,355 @@ function showAdvancedValidationResult(result) {
     `;
 
     document.body.appendChild(overlay);
+}
+
+// ==================== 拜访记录模块 ====================
+
+// 当前编辑的拜访记录ID
+let currentEditingVisitId = null;
+
+/**
+ * 显示拜访记录面板
+ */
+function showVisitsPanel(projectId) {
+    if (!projectId) {
+        alert('请先选择项目');
+        return;
+    }
+
+    const project = DataStorage.getProject(projectId);
+    if (!project) return;
+
+    const visits = DataStorage.getVisitsByProject(projectId);
+    const stats = DataStorage.getVisitStats(projectId);
+
+    const modal = document.getElementById('visitsModal');
+    if (!modal) {
+        createVisitsModal();
+    }
+
+    document.getElementById('visitsModalTitle').textContent = `拜访记录 - ${project.name}`;
+    document.getElementById('visitsModalBody').innerHTML = renderVisitsPanel(projectId, visits, stats);
+    document.getElementById('visitsModal').classList.add('active');
+}
+
+/**
+ * 创建拜访记录弹窗
+ */
+function createVisitsModal() {
+    const modal = document.createElement('div');
+    modal.id = 'visitsModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="visitsModalTitle">拜访记录</h2>
+                <button class="modal-close" onclick="closeVisitsModal()">×</button>
+            </div>
+            <div class="modal-body" id="visitsModalBody"></div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+/**
+ * 关闭拜访记录弹窗
+ */
+function closeVisitsModal() {
+    document.getElementById('visitsModal').classList.remove('active');
+}
+
+/**
+ * 渲染拜访记录面板
+ */
+function renderVisitsPanel(projectId, visits, stats) {
+    return `
+        <div class="visits-panel">
+            <!-- 统计概览 -->
+            <div class="visits-stats">
+                <div class="stat-item">
+                    <span class="stat-value">${stats.total}</span>
+                    <span class="stat-label">总拜访次数</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">${stats.thisMonth}</span>
+                    <span class="stat-label">本月拜访</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">${stats.lastMonth}</span>
+                    <span class="stat-label">上月拜访</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">${Object.keys(stats.byPerson).length}</span>
+                    <span class="stat-label">拜访人数</span>
+                </div>
+            </div>
+
+            <!-- 操作栏 -->
+            <div class="visits-actions">
+                <button class="btn btn-primary" onclick="showVisitForm('${projectId}')">
+                    + 新增拜访记录
+                </button>
+            </div>
+
+            <!-- 拜访列表 -->
+            <div class="visits-list">
+                ${visits.length === 0
+                    ? '<p class="empty-hint">暂无拜访记录，点击上方按钮添加</p>'
+                    : visits.map(v => renderVisitCard(v)).join('')
+                }
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 渲染单个拜访卡片
+ */
+function renderVisitCard(visit) {
+    const typeColors = {
+        '商务拜访': '#667eea',
+        '技术交流': '#28a745',
+        '高层拜访': '#dc3545',
+        '关系维护': '#ffc107',
+        '其他': '#6c757d'
+    };
+    const color = typeColors[visit.visitType] || '#6c757d';
+
+    return `
+        <div class="visit-card" data-visit-id="${visit.id}">
+            <div class="visit-header">
+                <span class="visit-date">${visit.visitDate}</span>
+                <span class="visit-type-badge" style="background: ${color}">${visit.visitType}</span>
+            </div>
+            <div class="visit-body">
+                <div class="visit-visitee">
+                    <strong>${visit.visiteeName || '未填写'}</strong>
+                    ${visit.visiteeTitle ? `<span class="visitee-title">${visit.visiteeTitle}</span>` : ''}
+                    ${visit.visiteeDept ? `<span class="visitee-dept">${visit.visiteeDept}</span>` : ''}
+                </div>
+                ${visit.purpose ? `<div class="visit-purpose"><b>目的：</b>${visit.purpose}</div>` : ''}
+                ${visit.result ? `<div class="visit-result"><b>结果：</b>${visit.result}</div>` : ''}
+                ${visit.nextAction ? `
+                    <div class="visit-next-action">
+                        <b>后续：</b>${visit.nextAction}
+                        ${visit.nextActionDate ? `<span class="next-date">（${visit.nextActionDate}）</span>` : ''}
+                    </div>
+                ` : ''}
+            </div>
+            <div class="visit-footer">
+                <button class="btn btn-sm btn-secondary" onclick="showVisitForm('${visit.projectId}', '${visit.id}')">编辑</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteVisit('${visit.id}', '${visit.projectId}')">删除</button>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 显示拜访记录表单
+ */
+function showVisitForm(projectId, visitId = null) {
+    currentEditingVisitId = visitId;
+    const isEdit = !!visitId;
+    const visit = isEdit ? DataStorage.getVisit(visitId) : null;
+
+    // 获取项目的评委列表（用于关联）
+    const project = DataStorage.getProject(projectId);
+    const task40 = DataStorage.getTask(projectId, '4.0');
+    const juryList = task40?.versions?.[0]?.fields?.jury_list || [];
+
+    const formHtml = `
+        <div class="visit-form">
+            <h3>${isEdit ? '编辑拜访记录' : '新增拜访记录'}</h3>
+            <form id="visitForm" onsubmit="submitVisitForm(event, '${projectId}')">
+                <input type="hidden" name="visitId" value="${visitId || ''}">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>拜访日期 *</label>
+                        <input type="date" name="visitDate" required
+                               value="${visit?.visitDate || new Date().toISOString().split('T')[0]}">
+                    </div>
+                    <div class="form-group">
+                        <label>拜访时间</label>
+                        <input type="time" name="visitTime" value="${visit?.visitTime || ''}">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>拜访类型 *</label>
+                        <select name="visitType" required>
+                            <option value="商务拜访" ${visit?.visitType === '商务拜访' ? 'selected' : ''}>商务拜访</option>
+                            <option value="技术交流" ${visit?.visitType === '技术交流' ? 'selected' : ''}>技术交流</option>
+                            <option value="高层拜访" ${visit?.visitType === '高层拜访' ? 'selected' : ''}>高层拜访</option>
+                            <option value="关系维护" ${visit?.visitType === '关系维护' ? 'selected' : ''}>关系维护</option>
+                            <option value="其他" ${visit?.visitType === '其他' ? 'selected' : ''}>其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>拜访地点</label>
+                        <input type="text" name="visitLocation" value="${visit?.visitLocation || ''}"
+                               placeholder="如：客户公司、我方展厅">
+                    </div>
+                </div>
+
+                <h4>拜访对象</h4>
+                ${juryList.length > 0 ? `
+                    <div class="form-group">
+                        <label>从评委列表选择</label>
+                        <select id="jurySelect" onchange="fillFromJury(this)">
+                            <option value="">-- 手动填写 --</option>
+                            ${juryList.map(j => `<option value="${j.name}|${j.position}|${j.department}">${j.name}（${j.position}）</option>`).join('')}
+                        </select>
+                    </div>
+                ` : ''}
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>姓名 *</label>
+                        <input type="text" name="visiteeName" required value="${visit?.visiteeName || ''}"
+                               placeholder="拜访对象姓名">
+                    </div>
+                    <div class="form-group">
+                        <label>职位</label>
+                        <input type="text" name="visiteeTitle" value="${visit?.visiteeTitle || ''}"
+                               placeholder="如：采购经理">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>部门</label>
+                        <input type="text" name="visiteeDept" value="${visit?.visiteeDept || ''}"
+                               placeholder="如：采购部">
+                    </div>
+                    <div class="form-group">
+                        <label>角色</label>
+                        <select name="visiteeRole">
+                            <option value="">请选择</option>
+                            <option value="决策者" ${visit?.visiteeRole === '决策者' ? 'selected' : ''}>决策者</option>
+                            <option value="影响者" ${visit?.visiteeRole === '影响者' ? 'selected' : ''}>影响者</option>
+                            <option value="使用者" ${visit?.visiteeRole === '使用者' ? 'selected' : ''}>使用者</option>
+                            <option value="技术把关者" ${visit?.visiteeRole === '技术把关者' ? 'selected' : ''}>技术把关者</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h4>拜访内容</h4>
+                <div class="form-group">
+                    <label>拜访目的 *</label>
+                    <textarea name="purpose" required placeholder="本次拜访的主要目的">${visit?.purpose || ''}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>拜访结果</label>
+                    <textarea name="result" placeholder="拜访的主要成果和收获">${visit?.result || ''}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>客户反馈</label>
+                    <textarea name="customerFeedback" placeholder="客户表达的意见、需求或顾虑">${visit?.customerFeedback || ''}</textarea>
+                </div>
+
+                <h4>后续跟进</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>下一步行动</label>
+                        <input type="text" name="nextAction" value="${visit?.nextAction || ''}"
+                               placeholder="需要跟进的事项">
+                    </div>
+                    <div class="form-group">
+                        <label>计划日期</label>
+                        <input type="date" name="nextActionDate" value="${visit?.nextActionDate || ''}">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="cancelVisitForm('${projectId}')">取消</button>
+                    <button type="submit" class="btn btn-primary">${isEdit ? '保存修改' : '添加记录'}</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.getElementById('visitsModalBody').innerHTML = formHtml;
+}
+
+/**
+ * 从评委列表填充拜访对象
+ */
+function fillFromJury(select) {
+    if (!select.value) return;
+    const [name, title, dept] = select.value.split('|');
+    document.querySelector('[name="visiteeName"]').value = name || '';
+    document.querySelector('[name="visiteeTitle"]').value = title || '';
+    document.querySelector('[name="visiteeDept"]').value = dept || '';
+}
+
+/**
+ * 取消拜访表单
+ */
+function cancelVisitForm(projectId) {
+    showVisitsPanel(projectId);
+}
+
+/**
+ * 提交拜访表单
+ */
+function submitVisitForm(event, projectId) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+
+    const data = {
+        projectId: projectId,
+        visitDate: formData.get('visitDate'),
+        visitTime: formData.get('visitTime'),
+        visitType: formData.get('visitType'),
+        visitLocation: formData.get('visitLocation'),
+        visiteeName: formData.get('visiteeName'),
+        visiteeTitle: formData.get('visiteeTitle'),
+        visiteeDept: formData.get('visiteeDept'),
+        visiteeRole: formData.get('visiteeRole'),
+        purpose: formData.get('purpose'),
+        result: formData.get('result'),
+        customerFeedback: formData.get('customerFeedback'),
+        nextAction: formData.get('nextAction'),
+        nextActionDate: formData.get('nextActionDate')
+    };
+
+    const visitId = formData.get('visitId');
+
+    if (visitId) {
+        // 更新
+        DataStorage.updateVisit(visitId, data);
+    } else {
+        // 新建
+        DataStorage.createVisit(data);
+    }
+
+    // 刷新列表
+    showVisitsPanel(projectId);
+}
+
+/**
+ * 删除拜访记录
+ */
+function deleteVisit(visitId, projectId) {
+    if (!confirm('确定要删除这条拜访记录吗？')) return;
+    DataStorage.deleteVisit(visitId);
+    showVisitsPanel(projectId);
+}
+
+/**
+ * 在项目卡片中显示拜访按钮
+ */
+function renderVisitButton(projectId) {
+    const stats = DataStorage.getVisitStats(projectId);
+    return `
+        <button class="btn btn-sm visit-btn" onclick="event.stopPropagation(); showVisitsPanel('${projectId}')">
+            📋 拜访(${stats.total})
+        </button>
+    `;
 }

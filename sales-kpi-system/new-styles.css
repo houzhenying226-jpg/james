@@ -1933,3 +1933,241 @@ body {
         min-width: 800px;
     }
 }
+
+/* ==================== 拜访记录模块 ==================== */
+
+.modal-large {
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.visits-panel {
+    padding: 10px 0;
+}
+
+/* 拜访统计概览 */
+.visits-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+    border-radius: 10px;
+}
+
+.visits-stats .stat-item {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.visits-stats .stat-value {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.visits-stats .stat-label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 5px;
+}
+
+/* 拜访操作栏 */
+.visits-actions {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+/* 拜访列表 */
+.visits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* 拜访卡片 */
+.visit-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+}
+
+.visit-card:hover {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+}
+
+.visit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: #f8f9fa;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.visit-date {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.visit-type-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    color: white;
+    font-weight: 500;
+}
+
+.visit-body {
+    padding: 15px;
+}
+
+.visit-visitee {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.visit-visitee strong {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.visitee-title,
+.visitee-dept {
+    margin-left: 10px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.visitee-title::before {
+    content: "·";
+    margin-right: 10px;
+}
+
+.visit-purpose,
+.visit-result,
+.visit-next-action {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.visit-purpose b,
+.visit-result b,
+.visit-next-action b {
+    color: var(--text-primary);
+}
+
+.next-date {
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.visit-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 10px 15px;
+    background: #f8f9fa;
+    border-top: 1px solid var(--border-color);
+}
+
+/* 拜访表单 */
+.visit-form {
+    padding: 10px 0;
+}
+
+.visit-form h3 {
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+
+.visit-form h4 {
+    margin: 25px 0 15px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary-color);
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.visit-form .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.visit-form .form-group {
+    margin-bottom: 15px;
+}
+
+.visit-form .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.visit-form .form-group input,
+.visit-form .form-group select,
+.visit-form .form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.visit-form .form-group input:focus,
+.visit-form .form-group select:focus,
+.visit-form .form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.visit-form .form-group textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.visit-form .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .visits-stats {
+        flex-wrap: wrap;
+    }
+
+    .visits-stats .stat-item {
+        flex: 1 1 45%;
+    }
+
+    .visit-form .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-large {
+        margin: 10px;
+        max-height: calc(100vh - 20px);
+    }
+}

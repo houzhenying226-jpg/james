@@ -7,7 +7,8 @@ const STORAGE_KEYS = {
     PROJECTS: 'sales_kpi_projects',
     TASKS: 'sales_kpi_tasks',
     SNAPSHOTS: 'sales_kpi_snapshots',
-    CONFIG: 'sales_kpi_config'
+    CONFIG: 'sales_kpi_config',
+    VISITS: 'sales_kpi_visits'
 };
 
 class DataStorage {
@@ -420,6 +421,201 @@ class DataStorage {
         this.saveConfig(config);
     }
 
+    // ==================== 拜访记录操作 ====================
+
+    /**
+     * 获取所有拜访记录
+     */
+    static getAllVisits() {
+        const data = localStorage.getItem(STORAGE_KEYS.VISITS);
+        return data ? JSON.parse(data) : {};
+    }
+
+    /**
+     * 获取单个拜访记录
+     */
+    static getVisit(visitId) {
+        const visits = this.getAllVisits();
+        return visits[visitId] || null;
+    }
+
+    /**
+     * 获取项目的所有拜访记录
+     */
+    static getVisitsByProject(projectId) {
+        const visits = this.getAllVisits();
+        return Object.values(visits)
+            .filter(v => v.projectId === projectId)
+            .sort((a, b) => new Date(b.visitDate) - new Date(a.visitDate));
+    }
+
+    /**
+     * 获取项目某月的拜访记录
+     */
+    static getVisitsByProjectAndMonth(projectId, month) {
+        const visits = this.getVisitsByProject(projectId);
+        return visits.filter(v => v.visitDate.startsWith(month));
+    }
+
+    /**
+     * 获取项目拜访统计
+     */
+    static getVisitStats(projectId) {
+        const visits = this.getVisitsByProject(projectId);
+        const currentMonth = this.getCurrentMonth();
+        const lastMonth = this.getLastMonth();
+
+        return {
+            total: visits.length,
+            thisMonth: visits.filter(v => v.visitDate.startsWith(currentMonth)).length,
+            lastMonth: visits.filter(v => v.visitDate.startsWith(lastMonth)).length,
+            byType: this.groupVisitsByType(visits),
+            byPerson: this.groupVisitsByPerson(visits)
+        };
+    }
+
+    /**
+     * 按拜访类型分组统计
+     */
+    static groupVisitsByType(visits) {
+        const groups = {};
+        visits.forEach(v => {
+            const type = v.visitType || '其他';
+            groups[type] = (groups[type] || 0) + 1;
+        });
+        return groups;
+    }
+
+    /**
+     * 按拜访对象分组统计
+     */
+    static groupVisitsByPerson(visits) {
+        const groups = {};
+        visits.forEach(v => {
+            const person = v.visiteeName || '未知';
+            if (!groups[person]) {
+                groups[person] = { count: 0, lastVisit: null };
+            }
+            groups[person].count++;
+            if (!groups[person].lastVisit || v.visitDate > groups[person].lastVisit) {
+                groups[person].lastVisit = v.visitDate;
+            }
+        });
+        return groups;
+    }
+
+    /**
+     * 上月
+     */
+    static getLastMonth() {
+        const date = new Date();
+        date.setMonth(date.getMonth() - 1);
+        return date.toISOString().slice(0, 7);
+    }
+
+    /**
+     * 生成拜访ID
+     */
+    static generateVisitId() {
+        return 'V' + Date.now().toString(36).toUpperCase();
+    }
+
+    /**
+     * 创建拜访记录
+     */
+    static createVisit(data) {
+        const visit = {
+            id: this.generateVisitId(),
+            projectId: data.projectId,
+            // 拜访基本信息
+            visitDate: data.visitDate || new Date().toISOString().split('T')[0],
+            visitTime: data.visitTime || '',
+            visitType: data.visitType || '商务拜访',  // 商务拜访/技术交流/高层拜访/关系维护/其他
+            visitLocation: data.visitLocation || '',
+            // 拜访对象信息
+            visiteeName: data.visiteeName || '',
+            visiteeTitle: data.visiteeTitle || '',
+            visiteeDept: data.visiteeDept || '',
+            visiteeRole: data.visiteeRole || '',  // 决策者/影响者/使用者/技术把关者
+            // 拜访内容
+            purpose: data.purpose || '',
+            topics: data.topics || [],  // 讨论议题
+            result: data.result || '',
+            customerFeedback: data.customerFeedback || '',
+            // 后续跟进
+            nextAction: data.nextAction || '',
+            nextActionDate: data.nextActionDate || '',
+            // 关联信息
+            relatedTaskCode: data.relatedTaskCode || '',  // 关联任务（如4.0评委攻关）
+            relatedJuryName: data.relatedJuryName || '',  // 关联评委（来自4.0评委列表）
+            // 附件
+            attachments: data.attachments || [],
+            // 元数据
+            createTime: new Date().toISOString(),
+            updateTime: new Date().toISOString()
+        };
+
+        return this.saveVisit(visit);
+    }
+
+    /**
+     * 保存拜访记录
+     */
+    static saveVisit(visit) {
+        const visits = this.getAllVisits();
+        visit.updateTime = new Date().toISOString();
+        visits[visit.id] = visit;
+        localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
+        return visit;
+    }
+
+    /**
+     * 更新拜访记录
+     */
+    static updateVisit(visitId, data) {
+        const visit = this.getVisit(visitId);
+        if (!visit) return null;
+
+        // 更新允许修改的字段
+        const updatableFields = [
+            'visitDate', 'visitTime', 'visitType', 'visitLocation',
+            'visiteeName', 'visiteeTitle', 'visiteeDept', 'visiteeRole',
+            'purpose', 'topics', 'result', 'customerFeedback',
+            'nextAction', 'nextActionDate',
+            'relatedTaskCode', 'relatedJuryName', 'attachments'
+        ];
+
+        updatableFields.forEach(field => {
+            if (data[field] !== undefined) {
+                visit[field] = data[field];
+            }
+        });
+
+        return this.saveVisit(visit);
+    }
+
+    /**
+     * 删除拜访记录
+     */
+    static deleteVisit(visitId) {
+        const visits = this.getAllVisits();
+        delete visits[visitId];
+        localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
+    }
+
+    /**
+     * 删除项目的所有拜访记录
+     */
+    static deleteVisitsByProject(projectId) {
+        const visits = this.getAllVisits();
+        Object.keys(visits).forEach(id => {
+            if (visits[id].projectId === projectId) {
+                delete visits[id];
+            }
+        });
+        localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(visits));
+    }
+
     // ==================== 数据管理 ====================
 
     /**
@@ -431,6 +627,7 @@ class DataStorage {
             tasks: this.getAllTasks(),
             snapshots: this.getAllSnapshots(),
             config: this.getConfig(),
+            visits: this.getAllVisits(),
             exportTime: new Date().toISOString()
         };
     }
@@ -451,6 +648,9 @@ class DataStorage {
         if (data.config) {
             localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(data.config));
         }
+        if (data.visits) {
+            localStorage.setItem(STORAGE_KEYS.VISITS, JSON.stringify(data.visits));
+        }
     }
 
     /**
@@ -461,6 +661,7 @@ class DataStorage {
         localStorage.removeItem(STORAGE_KEYS.TASKS);
         localStorage.removeItem(STORAGE_KEYS.SNAPSHOTS);
         localStorage.removeItem(STORAGE_KEYS.CONFIG);
+        localStorage.removeItem(STORAGE_KEYS.VISITS);
     }
 
     /**
