@@ -1403,7 +1403,7 @@ function renderCoefficients(project) {
     if (project.difficultyCoef) {
         html += `
             <span class="coefficient-badge">
-                难度系数: <span class="value">${project.difficultyCoef.value || project.difficultyCoef}</span>
+                难度系数: <span class="value">${project.difficultyCoef.coef || project.difficultyCoef}</span>
             </span>
         `;
     }
@@ -1412,7 +1412,7 @@ function renderCoefficients(project) {
         const days = project.stayCoef.days || '';
         html += `
             <span class="coefficient-badge">
-                停留系数: <span class="value">${project.stayCoef.value || project.stayCoef}</span>
+                停留系数: <span class="value">${project.stayCoef.coef || project.stayCoef}</span>
                 ${days ? `(${days}天)` : ''}
             </span>
         `;
@@ -1423,7 +1423,7 @@ function renderCoefficients(project) {
         const changeText = change > 0 ? `+${change}阶段` : (change < 0 ? `${change}阶段` : '保持');
         html += `
             <span class="coefficient-badge">
-                推进系数: <span class="value">${project.progressCoef.value || project.progressCoef}</span>
+                推进系数: <span class="value">${project.progressCoef.coef || project.progressCoef}</span>
                 (${changeText})
             </span>
         `;

@@ -68,9 +68,9 @@ class ScoreEngine {
         // 5. 计算最终分
         result.finalScore = Math.round(
             result.baseScore *
-            result.difficultyCoef.value *
-            result.stayCoef.value *
-            result.progressCoef.value *
+            result.difficultyCoef.coef *
+            result.stayCoef.coef *
+            result.progressCoef.coef *
             100
         ) / 100;
 
