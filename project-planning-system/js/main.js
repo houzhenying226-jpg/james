@@ -105,6 +105,33 @@ const App = {
       case 'save-settings':
         this.saveSettings();
         break;
+      // AI功能
+      case 'ai-match-inventory':
+        this.aiMatchInventory();
+        break;
+      case 'ai-suggest-craft':
+        this.aiSuggestCraft();
+        break;
+      case 'ai-check-project':
+        this.aiCheckProject();
+        break;
+      // 历史记录增强
+      case 'search-history':
+        this.searchHistory();
+        break;
+      case 'batch-delete':
+        this.batchDeleteProjects();
+        break;
+      case 'batch-export':
+        this.batchExportProjects();
+        break;
+      case 'toggle-select-all':
+        this.toggleSelectAll(target);
+        break;
+      case 'copy-project':
+        const copyId = target.dataset.id;
+        this.copyProject(copyId);
+        break;
     }
   },
 
@@ -278,7 +305,10 @@ const App = {
               <div class="form-group form-group-large">
                 <label>存货名称 <span class="required">*</span></label>
                 <div class="searchable-select">
-                  <input type="text" id="inventorySearch" class="form-control" placeholder="搜索存货名称..." autocomplete="off">
+                  <div class="search-with-ai">
+                    <input type="text" id="inventorySearch" class="form-control" placeholder="输入口语描述，如：男士西装三件套..." autocomplete="off">
+                    <button type="button" class="btn btn-sm btn-ai" data-action="ai-match-inventory" title="AI智能匹配">AI匹配</button>
+                  </div>
                   <select id="inventoryName" class="form-control" required>
                     ${FormManager.generateInventoryDropdownHTML()}
                   </select>
@@ -372,7 +402,10 @@ const App = {
             <!-- 工艺要求区域 -->
             <div id="craftOptionsContainer" class="craft-options-container">
               <div class="craft-section">
-                <h4>工艺要求 <span class="required">*</span></h4>
+                <div class="craft-header">
+                  <h4>工艺要求 <span class="required">*</span></h4>
+                  <button type="button" class="btn btn-sm btn-ai" data-action="ai-suggest-craft" title="AI智能补全工艺要求">AI补全工艺</button>
+                </div>
                 <p class="hint">请先选择存货名称，系统将自动显示对应的工艺选项</p>
               </div>
             </div>
@@ -669,6 +702,7 @@ const App = {
 
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" data-action="prev-step">返回修改</button>
+        <button type="button" class="btn btn-ai" data-action="ai-check-project">AI智能检查</button>
         <button type="button" class="btn btn-secondary" data-action="save-project">保存到本地</button>
         <button type="button" class="btn btn-primary" data-action="export-excel">导出Excel</button>
       </div>
@@ -1189,6 +1223,499 @@ const App = {
     StorageManager.saveSettings({ apiKey });
     this.closeModal();
     this.showMessage('设置已保存', 'success');
+  },
+
+  // ========== AI功能 ==========
+
+  // AI智能匹配存货名称
+  async aiMatchInventory() {
+    if (!AIService.isAvailable()) {
+      this.showMessage('请先在设置中配置DeepSeek API Key', 'error');
+      return;
+    }
+
+    const searchInput = document.getElementById('inventorySearch');
+    const userInput = searchInput ? searchInput.value.trim() : '';
+
+    if (!userInput) {
+      this.showMessage('请先输入存货描述', 'error');
+      return;
+    }
+
+    // 显示加载状态
+    const btn = document.querySelector('[data-action="ai-match-inventory"]');
+    const originalText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.textContent = '匹配中...';
+      btn.disabled = true;
+    }
+
+    try {
+      const result = await AIService.matchInventoryName(userInput);
+
+      if (result.success && result.data.matchedName) {
+        // 设置下拉框值
+        const select = document.getElementById('inventoryName');
+        if (select) {
+          select.value = result.data.matchedName;
+          this.onInventoryNameChange(result.data.matchedName);
+        }
+
+        // 如果有配置建议，填充配置字段
+        if (result.data.suggestedConfiguration) {
+          const configInput = document.getElementById('configuration');
+          if (configInput && !configInput.value) {
+            configInput.value = result.data.suggestedConfiguration;
+          }
+        }
+
+        this.showMessage(`已匹配：${result.data.matchedName}（${result.data.confidence}置信度）`, 'success');
+      } else {
+        this.showMessage(result.data?.reason || result.error || '未找到匹配的存货', 'error');
+      }
+    } catch (e) {
+      this.showMessage('AI匹配失败：' + e.message, 'error');
+    } finally {
+      if (btn) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+  },
+
+  // AI智能补全工艺要求
+  async aiSuggestCraft() {
+    if (!AIService.isAvailable()) {
+      this.showMessage('请先在设置中配置DeepSeek API Key', 'error');
+      return;
+    }
+
+    const inventoryName = document.getElementById('inventoryName').value;
+    if (!inventoryName) {
+      this.showMessage('请先选择存货名称', 'error');
+      return;
+    }
+
+    const level = document.getElementById('level').value || '标准';
+    const fabricBrand = document.getElementById('fabricBrand').value || '';
+
+    // 显示加载状态
+    const btn = document.querySelector('[data-action="ai-suggest-craft"]');
+    const originalText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.textContent = '生成中...';
+      btn.disabled = true;
+    }
+
+    try {
+      const result = await AIService.suggestCraftRequirements(inventoryName, level, fabricBrand);
+
+      if (result.success && result.data) {
+        // 填充工艺选项
+        if (result.data.recommendations) {
+          for (const [key, value] of Object.entries(result.data.recommendations)) {
+            const radio = document.querySelector(`input[name="craft_${key}"][value="${value}"]`);
+            if (radio) {
+              radio.checked = true;
+            }
+
+            const input = document.querySelector(`input[name="craft_${key}"]`);
+            if (input && input.type === 'text') {
+              input.value = value;
+            }
+          }
+        }
+
+        // 填充其他工艺要求
+        if (result.data.craftText) {
+          const otherTextarea = document.getElementById('craftOther');
+          if (otherTextarea && !otherTextarea.value) {
+            otherTextarea.value = result.data.craftText;
+          }
+        }
+
+        this.showMessage('工艺要求已智能补全', 'success');
+
+        // 显示推荐理由
+        if (result.data.reason) {
+          this.showAITip(result.data.reason);
+        }
+      } else {
+        this.showMessage(result.error || '工艺补全失败', 'error');
+      }
+    } catch (e) {
+      this.showMessage('AI补全失败：' + e.message, 'error');
+    } finally {
+      if (btn) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+  },
+
+  // AI检查项目完整性
+  async aiCheckProject() {
+    if (!AIService.isAvailable()) {
+      this.showMessage('请先在设置中配置DeepSeek API Key', 'error');
+      return;
+    }
+
+    // 显示加载状态
+    const btn = document.querySelector('[data-action="ai-check-project"]');
+    const originalText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.textContent = 'AI检查中...';
+      btn.disabled = true;
+    }
+
+    try {
+      const result = await AIService.checkProjectCompleteness(FormManager.currentProject);
+
+      if (result.success && result.data) {
+        this.showAICheckResult(result.data);
+      } else {
+        this.showMessage(result.error || 'AI检查失败', 'error');
+      }
+    } catch (e) {
+      this.showMessage('AI检查失败：' + e.message, 'error');
+    } finally {
+      if (btn) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+  },
+
+  // 显示AI检查结果
+  showAICheckResult(data) {
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.id = 'aiCheckModal';
+
+    const scoreClass = data.score >= 80 ? 'score-good' : (data.score >= 60 ? 'score-medium' : 'score-bad');
+
+    let issuesHtml = '';
+    if (data.issues && data.issues.length > 0) {
+      issuesHtml = `
+        <div class="ai-check-section">
+          <h4>发现的问题</h4>
+          <ul class="ai-issues-list">
+            ${data.issues.map(issue => `
+              <li class="issue-${issue.type}">
+                <span class="issue-field">${issue.field}</span>
+                <span class="issue-type">${issue.type}</span>
+                <span class="issue-message">${issue.message}</span>
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+      `;
+    }
+
+    let suggestionsHtml = '';
+    if (data.suggestions && data.suggestions.length > 0) {
+      suggestionsHtml = `
+        <div class="ai-check-section">
+          <h4>改进建议</h4>
+          <ul class="ai-suggestions-list">
+            ${data.suggestions.map(s => `<li>${s}</li>`).join('')}
+          </ul>
+        </div>
+      `;
+    }
+
+    modal.innerHTML = `
+      <div class="modal-content modal-lg">
+        <div class="modal-header">
+          <h3>AI智能检查结果</h3>
+          <button type="button" class="modal-close" data-action="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="ai-check-score ${scoreClass}">
+            <div class="score-circle">
+              <span class="score-value">${data.score || 0}</span>
+              <span class="score-label">完整度评分</span>
+            </div>
+            <div class="score-status">
+              ${data.isComplete ? '<span class="status-complete">表格完整</span>' : '<span class="status-incomplete">待完善</span>'}
+            </div>
+          </div>
+          ${issuesHtml}
+          ${suggestionsHtml}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-action="close-modal">知道了</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  },
+
+  // 显示AI提示
+  showAITip(tip) {
+    const tipEl = document.createElement('div');
+    tipEl.className = 'ai-tip';
+    tipEl.innerHTML = `
+      <div class="ai-tip-icon">AI</div>
+      <div class="ai-tip-content">${tip}</div>
+      <button class="ai-tip-close" onclick="this.parentElement.remove()">&times;</button>
+    `;
+
+    const container = document.getElementById('craftOptionsContainer');
+    if (container) {
+      const existingTip = container.querySelector('.ai-tip');
+      if (existingTip) existingTip.remove();
+      container.insertBefore(tipEl, container.firstChild);
+    }
+  },
+
+  // ========== 历史记录增强功能 ==========
+
+  // 渲染增强的历史记录列表
+  renderHistoryList(searchKeyword = '') {
+    const container = document.getElementById('historyList');
+    const projects = searchKeyword ?
+      StorageManager.searchProjects(searchKeyword) :
+      StorageManager.getAllProjects();
+
+    const storageInfo = StorageManager.getStorageInfo();
+
+    if (projects.length === 0) {
+      container.innerHTML = `
+        <div class="history-toolbar">
+          <div class="search-box">
+            <input type="text" id="historySearch" class="form-control" placeholder="搜索客户名称、合同号..." value="${searchKeyword}">
+            <button type="button" class="btn btn-primary" data-action="search-history">搜索</button>
+          </div>
+          <div class="storage-info">
+            已存储 ${storageInfo.projectCount} 个项目，占用 ${storageInfo.usedMB} MB
+          </div>
+        </div>
+        <div class="empty-list">${searchKeyword ? '未找到匹配的项目' : '暂无历史记录'}</div>
+      `;
+      return;
+    }
+
+    let html = `
+      <div class="history-toolbar">
+        <div class="search-box">
+          <input type="text" id="historySearch" class="form-control" placeholder="搜索客户名称、合同号..." value="${searchKeyword}">
+          <button type="button" class="btn btn-primary" data-action="search-history">搜索</button>
+        </div>
+        <div class="batch-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-action="batch-export">批量导出</button>
+          <button type="button" class="btn btn-danger btn-sm" data-action="batch-delete">批量删除</button>
+        </div>
+        <div class="storage-info">
+          已存储 ${storageInfo.projectCount} 个项目，占用 ${storageInfo.usedMB} MB
+        </div>
+      </div>
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th class="check-col">
+              <input type="checkbox" id="selectAll" data-action="toggle-select-all">
+            </th>
+            <th>客户名称</th>
+            <th>合同号</th>
+            <th>项目金额</th>
+            <th>制装人数</th>
+            <th>明细数</th>
+            <th>保存时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    projects.forEach(project => {
+      const info = project.basicInfo || {};
+      const meta = project.metadata || {};
+      const detailCount = project.details ? project.details.length : 0;
+
+      html += `
+        <tr data-id="${project.id}">
+          <td class="check-col">
+            <input type="checkbox" class="project-checkbox" value="${project.id}">
+          </td>
+          <td>${info.customerName || '未命名'}</td>
+          <td>${info.contractNo || '-'}</td>
+          <td>${info.projectAmount ? Number(info.projectAmount).toLocaleString() + ' 元' : '-'}</td>
+          <td>${info.totalPeople ? info.totalPeople + ' 人' : '-'}</td>
+          <td>${detailCount} 条</td>
+          <td>${meta.updateTime ? new Date(meta.updateTime).toLocaleString() : '-'}</td>
+          <td class="actions">
+            <button type="button" class="btn btn-sm btn-secondary" data-action="view-project" data-id="${project.id}">查看</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-action="edit-project" data-id="${project.id}">编辑</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-action="copy-project" data-id="${project.id}">复制</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-action="export-project" data-id="${project.id}">导出</button>
+            <button type="button" class="btn btn-sm btn-danger" data-action="delete-project" data-id="${project.id}">删除</button>
+          </td>
+        </tr>
+      `;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    // 绑定搜索框回车事件
+    const searchInput = document.getElementById('historySearch');
+    if (searchInput) {
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          this.searchHistory();
+        }
+      });
+    }
+  },
+
+  // 搜索历史记录
+  searchHistory() {
+    const keyword = document.getElementById('historySearch').value.trim();
+    this.renderHistoryList(keyword);
+  },
+
+  // 全选/取消全选
+  toggleSelectAll(checkbox) {
+    const isChecked = checkbox.checked;
+    document.querySelectorAll('.project-checkbox').forEach(cb => {
+      cb.checked = isChecked;
+    });
+  },
+
+  // 获取选中的项目ID
+  getSelectedProjectIds() {
+    const ids = [];
+    document.querySelectorAll('.project-checkbox:checked').forEach(cb => {
+      ids.push(cb.value);
+    });
+    return ids;
+  },
+
+  // 批量删除
+  batchDeleteProjects() {
+    const ids = this.getSelectedProjectIds();
+    if (ids.length === 0) {
+      this.showMessage('请先选择要删除的项目', 'error');
+      return;
+    }
+
+    if (confirm(`确定要删除选中的 ${ids.length} 个项目吗？此操作不可恢复。`)) {
+      let successCount = 0;
+      ids.forEach(id => {
+        const result = StorageManager.deleteProject(id);
+        if (result.success) successCount++;
+      });
+
+      this.renderHistoryList();
+      this.showMessage(`已删除 ${successCount} 个项目`, 'success');
+    }
+  },
+
+  // 批量导出
+  batchExportProjects() {
+    const ids = this.getSelectedProjectIds();
+    if (ids.length === 0) {
+      this.showMessage('请先选择要导出的项目', 'error');
+      return;
+    }
+
+    const projects = ids.map(id => StorageManager.getProjectById(id)).filter(p => p);
+
+    if (projects.length === 1) {
+      // 单个项目直接导出
+      const result = ExcelExporter.exportToExcel(projects[0]);
+      if (result.success) {
+        this.showMessage(`已导出：${result.fileName}`, 'success');
+      }
+    } else {
+      // 多个项目导出列表
+      const result = ExcelExporter.exportProjectList(projects);
+      if (result.success) {
+        this.showMessage(`已导出 ${projects.length} 个项目的汇总表`, 'success');
+      }
+    }
+  },
+
+  // 复制项目
+  copyProject(id) {
+    const project = StorageManager.getProjectById(id);
+    if (project) {
+      // 创建副本
+      const copy = JSON.parse(JSON.stringify(project));
+      delete copy.id;
+      copy.basicInfo.customerName = (copy.basicInfo.customerName || '') + ' (副本)';
+      copy.metadata = {
+        createTime: new Date().toISOString(),
+        updateTime: new Date().toISOString()
+      };
+
+      const result = StorageManager.saveProject(copy);
+      if (result.success) {
+        this.renderHistoryList();
+        this.showMessage('项目已复制', 'success');
+      } else {
+        this.showMessage('复制失败：' + result.error, 'error');
+      }
+    }
+  },
+
+  // ========== 增强的表单验证 ==========
+
+  // 实时验证表单字段
+  validateFieldRealtime(input) {
+    const fieldId = input.id;
+    const value = input.value.trim();
+    const isRequired = input.hasAttribute('required');
+
+    // 移除之前的错误状态
+    input.classList.remove('error');
+    const existingError = input.parentElement.querySelector('.field-error');
+    if (existingError) existingError.remove();
+
+    // 检查必填
+    if (isRequired && !value) {
+      this.showFieldError(input, '此字段为必填项');
+      return false;
+    }
+
+    // 特定字段验证
+    if (fieldId === 'projectAmount' || fieldId === 'totalPeople' || fieldId === 'quantity') {
+      if (value && (isNaN(Number(value)) || Number(value) < 0)) {
+        this.showFieldError(input, '请输入有效的数字');
+        return false;
+      }
+    }
+
+    if (fieldId === 'contractNo' && value) {
+      // 合同号格式验证（可选）
+      if (!/^[A-Z]{2}\d{2}-\d{1,4}$/i.test(value) && !value.includes('-')) {
+        this.showFieldHint(input, '建议格式：OP25-152');
+      }
+    }
+
+    return true;
+  },
+
+  // 显示字段错误
+  showFieldError(input, message) {
+    input.classList.add('error');
+    const error = document.createElement('div');
+    error.className = 'field-error';
+    error.textContent = message;
+    input.parentElement.appendChild(error);
+  },
+
+  // 显示字段提示
+  showFieldHint(input, message) {
+    const existingHint = input.parentElement.querySelector('.field-hint');
+    if (existingHint) existingHint.remove();
+
+    const hint = document.createElement('div');
+    hint.className = 'field-hint';
+    hint.textContent = message;
+    input.parentElement.appendChild(hint);
   }
 };
 

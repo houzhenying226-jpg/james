@@ -829,3 +829,358 @@ select.form-control {
     border: 1px solid #ddd;
   }
 }
+
+/* ========== AI功能样式 ========== */
+.btn-ai {
+  background: linear-gradient(135deg, #722ed1 0%, #9254de 100%);
+  color: white;
+  border: none;
+}
+
+.btn-ai:hover:not(:disabled) {
+  background: linear-gradient(135deg, #9254de 0%, #b37feb 100%);
+}
+
+.btn-ai:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* 搜索框带AI按钮 */
+.search-with-ai {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.search-with-ai .form-control {
+  flex: 1;
+}
+
+.search-with-ai .btn-ai {
+  white-space: nowrap;
+}
+
+/* 工艺区域头部 */
+.craft-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.craft-header h4 {
+  margin: 0;
+}
+
+/* AI提示框 */
+.ai-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%);
+  border: 1px solid #d3adf7;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.ai-tip-icon {
+  background: linear-gradient(135deg, #722ed1 0%, #9254de 100%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.ai-tip-content {
+  flex: 1;
+  color: #531dab;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ai-tip-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #9254de;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.ai-tip-close:hover {
+  color: #722ed1;
+}
+
+/* AI检查结果弹窗 */
+.modal-lg {
+  width: 600px;
+  max-width: 90%;
+}
+
+.ai-check-score {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+  background: #fafafa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.score-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid;
+}
+
+.score-good .score-circle {
+  border-color: #52c41a;
+  background: #f6ffed;
+}
+
+.score-medium .score-circle {
+  border-color: #faad14;
+  background: #fffbe6;
+}
+
+.score-bad .score-circle {
+  border-color: #ff4d4f;
+  background: #fff2f0;
+}
+
+.score-value {
+  font-size: 32px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.score-good .score-value {
+  color: #52c41a;
+}
+
+.score-medium .score-value {
+  color: #faad14;
+}
+
+.score-bad .score-value {
+  color: #ff4d4f;
+}
+
+.score-label {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.score-status {
+  flex: 1;
+}
+
+.status-complete {
+  color: #52c41a;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.status-incomplete {
+  color: #ff4d4f;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ai-check-section {
+  margin-bottom: 20px;
+}
+
+.ai-check-section h4 {
+  font-size: 15px;
+  color: #333;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ai-issues-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ai-issues-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #fafafa;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.issue-field {
+  font-weight: 600;
+  color: #333;
+  min-width: 80px;
+}
+
+.issue-type {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.issue-缺失 .issue-type,
+.issue-missing .issue-type {
+  background: #fff2f0;
+  color: #ff4d4f;
+}
+
+.issue-不合理 .issue-type,
+.issue-invalid .issue-type {
+  background: #fffbe6;
+  color: #faad14;
+}
+
+.issue-建议 .issue-type,
+.issue-suggestion .issue-type {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.issue-message {
+  flex: 1;
+  color: #666;
+}
+
+.ai-suggestions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ai-suggestions-list li {
+  padding: 8px 12px;
+  background: #f0f7ff;
+  border-left: 3px solid #1890ff;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+/* ========== 历史记录增强样式 ========== */
+.history-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  flex-wrap: wrap;
+}
+
+.search-box {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 280px;
+}
+
+.search-box .form-control {
+  flex: 1;
+  max-width: 300px;
+}
+
+.batch-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.storage-info {
+  color: #999;
+  font-size: 13px;
+  margin-left: auto;
+}
+
+.check-col {
+  width: 40px;
+  text-align: center;
+}
+
+.history-table .check-col input {
+  cursor: pointer;
+}
+
+/* ========== 字段验证样式 ========== */
+.field-error {
+  color: #ff4d4f;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.field-hint {
+  color: #faad14;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.form-control.error {
+  border-color: #ff4d4f;
+}
+
+.form-control.error:focus {
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+}
+
+/* ========== 响应式调整（补充） ========== */
+@media (max-width: 768px) {
+  .history-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-box {
+    min-width: 100%;
+  }
+
+  .search-box .form-control {
+    max-width: none;
+  }
+
+  .batch-actions {
+    justify-content: flex-end;
+  }
+
+  .storage-info {
+    margin-left: 0;
+    text-align: right;
+  }
+
+  .ai-check-score {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .search-with-ai {
+    flex-direction: column;
+  }
+
+  .craft-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
