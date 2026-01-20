@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>北方努派 - 项目规划表智能填写系统</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- SheetJS 库用于Excel导出 -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 头部 -->
+    <header class="app-header">
+      <h1>北方努派 - 项目规划表智能填写系统</h1>
+      <div class="header-actions">
+        <button type="button" class="btn-icon" data-action="show-settings" title="设置">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="app-main">
+      <!-- 首页 -->
+      <div id="homePage" class="page active">
+        <div class="home-content">
+          <div class="welcome-text">
+            <h2>欢迎使用项目规划表智能填写系统</h2>
+            <p>帮助销售人员正确、完整地填写项目规划表</p>
+          </div>
+          <div class="home-actions">
+            <div class="action-card" data-action="new-project">
+              <div class="icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#1890ff" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14,2 14,8 20,8"></polyline>
+                  <line x1="12" y1="18" x2="12" y2="12"></line>
+                  <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+              </div>
+              <h3>新建项目规划表</h3>
+              <p>开始填写新的项目规划表</p>
+            </div>
+            <div class="action-card" data-action="view-history">
+              <div class="icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#52c41a" stroke-width="2">
+                  <path d="M3 3v5h5"></path>
+                  <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
+                  <path d="M12 7v5l4 2"></path>
+                </svg>
+              </div>
+              <h3>历史记录</h3>
+              <p>查看之前保存的项目规划表</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 表单页 -->
+      <div id="formPage" class="page">
+        <!-- 步骤指示器 -->
+        <div class="step-indicator">
+          <div class="step active">
+            <span class="step-number">1</span>
+            <span class="step-title">项目基本信息</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step">
+            <span class="step-number">2</span>
+            <span class="step-title">制作明细</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step">
+            <span class="step-number">3</span>
+            <span class="step-title">执行规划时间</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step">
+            <span class="step-number">4</span>
+            <span class="step-title">预览导出</span>
+          </div>
+        </div>
+
+        <!-- 表单内容区 -->
+        <div id="formContent">
+          <!-- 动态渲染 -->
+        </div>
+      </div>
+
+      <!-- 历史记录页 -->
+      <div id="historyPage" class="page">
+        <div class="history-header">
+          <h2>历史记录</h2>
+          <button type="button" class="btn btn-secondary" data-action="go-home">返回首页</button>
+        </div>
+        <div id="historyList">
+          <!-- 动态渲染 -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div id="settingsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>系统设置</h3>
+        <button type="button" class="modal-close" data-action="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>DeepSeek API Key（可选，用于AI辅助功能）</label>
+          <input type="password" id="apiKey" class="form-control" placeholder="sk-...">
+          <p class="hint">配置API Key后可使用存货名称智能匹配、工艺要求智能补全等AI功能</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-action="close-modal">取消</button>
+        <button type="button" class="btn btn-primary" data-action="save-settings">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 加载JavaScript模块 -->
+  <script src="js/data.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/form.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
