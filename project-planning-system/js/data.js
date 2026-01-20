@@ -263,22 +263,71 @@ const INVENTORY_CRAFT_MAP = {
 
 // 存货名称口语映射（用于AI智能匹配）
 const INVENTORY_ALIASES = {
+  // 男士西服相关
   "男士西装": "男西服套装",
   "男西装": "男西服套装",
   "西装套装": "男西服套装",
   "男士西装三件套": "男西服套装",
+  "男士西服": "男西服套装",
+  "男西服两件套": "男西服套装",
+  "男士西服两件套": "男西服套装",
+  "男西服三件套": "男西服套装",
+  "职业套装": "男西服套装",
+  "正装": "男西服套装",
+  "男正装": "男西服套装",
+
+  // 女士西服相关
   "女士西装": "女西服套装",
   "女西装": "女西服套装",
+  "女士职业装": "女西服套装",
+  "女职业装": "女西服套装",
+  "女正装": "女西服套装",
+
+  // 衬衫相关
   "男衬衫": "男长袖衬衣",
   "男士衬衫": "男长袖衬衣",
+  "男长袖衬衫": "男长袖衬衣",
   "女衬衫": "女长袖衬衣",
   "女士衬衫": "女长袖衬衣",
+  "女长袖衬衫": "女长袖衬衣",
+  "男短袖衬衫": "男短袖衬衣",
+  "女短袖衬衫": "女短袖衬衣",
+
+  // 裤子相关
   "西服裤": "男西裤",
   "西装裤": "男西裤",
+  "男裤子": "男西裤",
+  "女裤子": "女西裤",
+  "男士西裤": "男西裤",
+  "女士西裤": "女西裤",
+
+  // 大衣相关
   "呢子大衣": "男大衣",
   "羊绒大衣": "男大衣",
-  "职业套装": "男西服套装",
-  "工装": "春秋夹克套装"
+  "男士大衣": "男大衣",
+  "女士大衣": "女大衣",
+
+  // 夹克相关
+  "工装": "春秋夹克套装",
+  "工作服": "春秋夹克套装",
+  "男夹克": "男夹克上衣",
+  "女夹克": "女夹克上衣",
+
+  // 马甲相关
+  "男士马甲": "男马甲",
+  "女士马甲": "女马甲",
+  "西服马甲": "男马甲",
+
+  // T恤相关
+  "男T恤": "男短袖T恤",
+  "女T恤": "女短袖T恤",
+  "文化衫": "男短袖T恤",
+  "POLO衫": "男短袖T恤",
+
+  // 配饰相关
+  "领带": "领带",
+  "丝巾": "丝巾",
+  "皮带": "皮带"
 };
 
 // 根据存货名称获取对应的存货编码
@@ -311,16 +360,112 @@ function getInventoryType(inventoryName) {
   return item ? item.type : '';
 }
 
-// 搜索存货名称
+// 搜索存货名称（支持模糊匹配和别名）
 function searchInventory(keyword) {
   if (!keyword) return INVENTORY_DATA;
 
-  const lowerKeyword = keyword.toLowerCase();
-  return INVENTORY_DATA.filter(item =>
-    item.name.toLowerCase().includes(lowerKeyword) ||
-    item.type.toLowerCase().includes(lowerKeyword) ||
-    item.code.toLowerCase().includes(lowerKeyword)
-  );
+  const lowerKeyword = keyword.toLowerCase().trim();
+
+  // 首先检查别名映射
+  const aliasMatch = INVENTORY_ALIASES[keyword] || INVENTORY_ALIASES[lowerKeyword];
+  if (aliasMatch) {
+    const exactMatch = INVENTORY_DATA.filter(item => item.name === aliasMatch);
+    if (exactMatch.length > 0) {
+      return exactMatch;
+    }
+  }
+
+  // 拆分关键词进行多词匹配
+  const keywords = extractKeywords(lowerKeyword);
+
+  // 计算每个存货的匹配得分
+  const scoredItems = INVENTORY_DATA.map(item => {
+    let score = 0;
+    const itemName = item.name.toLowerCase();
+    const itemType = item.type.toLowerCase();
+    const itemCode = item.code.toLowerCase();
+
+    // 完全包含匹配（最高优先级）
+    if (itemName.includes(lowerKeyword)) {
+      score += 100;
+    }
+
+    // 关键词匹配
+    keywords.forEach(kw => {
+      if (itemName.includes(kw)) score += 20;
+      if (itemType.includes(kw)) score += 15;
+      if (itemCode.includes(kw)) score += 10;
+    });
+
+    // 特殊词汇匹配
+    if (lowerKeyword.includes('男') && itemName.includes('男')) score += 10;
+    if (lowerKeyword.includes('女') && itemName.includes('女')) score += 10;
+    if (lowerKeyword.includes('套') && itemName.includes('套')) score += 5;
+    if (lowerKeyword.includes('高') && itemName.includes('高')) score += 5;
+
+    return { item, score };
+  });
+
+  // 过滤有得分的项目并排序
+  const results = scoredItems
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(s => s.item);
+
+  return results;
+}
+
+// 提取关键词（处理中文和英文）
+function extractKeywords(input) {
+  const keywords = [];
+
+  // 中文关键词映射
+  const keywordMap = {
+    '西装': '西服',
+    '西服': '西服',
+    '衬衣': '衬衣',
+    '衬衫': '衬衣',
+    '裤子': '裤',
+    '裤': '裤',
+    '裙': '裙',
+    '大衣': '大衣',
+    '夹克': '夹克',
+    '马甲': '马甲',
+    'T恤': 'T恤',
+    '针织': '针织',
+    '羊绒': '羊绒',
+    '棉服': '棉服',
+    '羽绒': '羽绒',
+    '风衣': '风衣',
+    '冲锋衣': '冲锋衣',
+    '连衣裙': '连衣裙',
+    '套装': '套装',
+    '上衣': '上衣',
+    '长袖': '长袖',
+    '短袖': '短袖',
+    '男士': '男',
+    '男': '男',
+    '女士': '女',
+    '女': '女',
+    '高端': '高',
+    '高级': '高'
+  };
+
+  // 遍历映射表查找匹配的关键词
+  for (const [key, value] of Object.entries(keywordMap)) {
+    if (input.includes(key)) {
+      if (!keywords.includes(value)) {
+        keywords.push(value);
+      }
+    }
+  }
+
+  // 如果没有匹配到任何关键词，返回原始输入
+  if (keywords.length === 0) {
+    keywords.push(input);
+  }
+
+  return keywords;
 }
 
 // 根据存货名称获取工艺选项
@@ -346,4 +491,5 @@ window.INVENTORY_ALIASES = INVENTORY_ALIASES;
 window.getInventoryCode = getInventoryCode;
 window.getInventoryType = getInventoryType;
 window.searchInventory = searchInventory;
+window.extractKeywords = extractKeywords;
 window.getCraftOptions = getCraftOptions;

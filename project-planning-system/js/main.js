@@ -797,12 +797,25 @@ const App = {
 
   // 存货名称变化处理
   onInventoryNameChange(inventoryName) {
+    // 处理"显示全部存货"特殊选项
+    if (inventoryName === '__show_all__') {
+      const select = document.getElementById('inventoryName');
+      select.innerHTML = FormManager.generateInventoryDropdownHTML();
+      // 清空搜索框
+      const searchInput = document.getElementById('inventorySearch');
+      if (searchInput) searchInput.value = '';
+      return;
+    }
+
     if (!inventoryName) {
       document.getElementById('inventoryCode').value = '';
       document.getElementById('category').value = '';
       document.getElementById('craftOptionsContainer').innerHTML = `
         <div class="craft-section">
-          <h4>工艺要求 <span class="required">*</span></h4>
+          <div class="craft-header">
+            <h4>工艺要求 <span class="required">*</span></h4>
+            <button type="button" class="btn btn-sm btn-ai" data-action="ai-suggest-craft" title="AI智能补全工艺要求">AI补全工艺</button>
+          </div>
           <p class="hint">请先选择存货名称，系统将自动显示对应的工艺选项</p>
         </div>
       `;
@@ -843,16 +856,29 @@ const App = {
       const results = searchInventory(keyword);
 
       // 重新生成下拉选项
-      let html = '<option value="">请选择存货名称</option>';
+      let html = '';
 
-      if (keyword && results.length > 0) {
-        // 搜索模式：直接显示结果
+      if (!keyword) {
+        // 无搜索词：显示全部（按类型分组）
+        html = FormManager.generateInventoryDropdownHTML();
+      } else if (results.length > 0) {
+        // 有搜索结果：显示匹配项
+        html = '<option value="">请选择存货名称</option>';
         results.forEach(item => {
           html += `<option value="${item.name}" data-code="${item.code}" data-type="${item.type}" data-category="${item.category}">${item.name}</option>`;
         });
-      } else if (!keyword) {
-        // 无搜索词：按类型分组显示
-        html = FormManager.generateInventoryDropdownHTML();
+        // 添加查看全部选项
+        html += `<option value="" disabled>───────────</option>`;
+        html += `<option value="__show_all__">显示全部存货...</option>`;
+      } else {
+        // 无匹配结果：显示提示和全部选项
+        html = '<option value="">未找到匹配项，请查看全部</option>';
+        html += `<option value="__show_all__">显示全部存货...</option>`;
+        html += `<option value="" disabled>───────────</option>`;
+        // 显示所有选项供用户选择
+        window.INVENTORY_DATA.forEach(item => {
+          html += `<option value="${item.name}" data-code="${item.code}" data-type="${item.type}" data-category="${item.category}">${item.name}</option>`;
+        });
       }
 
       select.innerHTML = html;
