@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>北方努派 - 项目规划表智能填写系统</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- 头部 -->
+    <header class="app-header">
+      <h1>北方努派 - 项目规划表智能填写系统</h1>
+      <p class="subtitle">用自己的话描述需求，AI帮你填表</p>
+    </header>
+
+    <!-- 头部操作按钮 -->
+    <div class="header-actions">
+      <button class="btn btn-icon" id="historyBtn" title="历史记录">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </button>
+      <button class="btn btn-icon" id="settingsBtn" title="设置">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- 输入页面 -->
+    <div id="inputPage" class="page active">
+      <div class="input-container">
+        <!-- API提示 -->
+        <div id="apiTip" class="api-tip">
+          提示：您还未配置AI接口，将使用离线模式（功能有限）。点击右上角设置按钮配置 <a href="javascript:void(0)" onclick="App.showSettings()">DeepSeek API Key</a> 以启用完整AI功能。
+        </div>
+
+        <div class="input-section">
+          <label class="input-label">请用自己的话描述这个项目的需求：</label>
+          <textarea
+            id="userInput"
+            class="input-textarea"
+            placeholder="例如：
+交银金融租赁，合同号OP25-152，200万，260人，2月9号交货。
+
+男西服套装17人，VBC深灰super130，努派采购面料。
+女西服套装9人，同样面料。
+男大衣10人，希努尔自己的藏青面料。
+
+都用标准高端工艺，希努尔做，大货包装。"></textarea>
+          <div class="input-hint">
+            <span class="icon">💡</span>
+            <span>可以用口语描述，比如"男士西装"、"努派买料"、"三件套"。按 Ctrl+Enter 快速解析</span>
+          </div>
+        </div>
+
+        <button id="parseBtn" class="parse-btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+          AI智能解析
+        </button>
+
+        <!-- 最近项目 -->
+        <div class="recent-section">
+          <div class="recent-title">
+            <span class="icon">📋</span>
+            <span>最近项目</span>
+          </div>
+          <div id="recentProjects">
+            <!-- 动态填充 -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 结果页面 -->
+    <div id="resultPage" class="page">
+      <div class="result-container">
+        <!-- 结果头部 -->
+        <div class="result-header">
+          <div class="result-title">
+            <span class="icon">✓</span>
+            <h2>AI已解析完成，请确认以下信息</h2>
+          </div>
+          <div class="confidence-badge">
+            解析置信度: <span id="confidenceValue" class="high">95%</span>
+          </div>
+        </div>
+
+        <!-- 警告区域 -->
+        <div id="warningsContent" class="warnings-section" style="display:none;"></div>
+
+        <!-- 基本信息 -->
+        <div class="section-card">
+          <div class="section-header">
+            <h3>
+              <span class="icon">📋</span>
+              项目基本信息
+            </h3>
+            <button class="btn btn-sm btn-link" data-action="edit-basic">修改</button>
+          </div>
+          <div id="basicInfoContent">
+            <!-- 动态填充 -->
+          </div>
+        </div>
+
+        <!-- 制作明细 -->
+        <div class="section-card">
+          <div class="section-header">
+            <h3>
+              <span class="icon">👔</span>
+              制作明细 <span id="detailCount">(0条)</span>
+            </h3>
+            <button class="btn btn-sm btn-link" data-action="add-detail">+ 添加</button>
+          </div>
+          <div id="detailsContent">
+            <!-- 动态填充 -->
+          </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="result-actions">
+          <button id="backBtn" class="btn btn-secondary btn-lg">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            返回修改
+          </button>
+          <button id="exportBtn" class="btn btn-success btn-lg">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            确认并导出Excel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 编辑弹窗 -->
+    <div id="editModal" class="modal">
+      <div class="modal-content">
+        <div id="editModalContent">
+          <!-- 动态填充 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 引入脚本 -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/ai-parser.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
