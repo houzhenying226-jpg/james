@@ -5,12 +5,12 @@
 批次1：4张MVP多维表格自动化建表
 
 使用方式：
-1. 安装依赖：pip install requests
-2. 配置环境变量：
-   export DINGTALK_APP_KEY="your_app_key"
-   export DINGTALK_APP_SECRET="your_app_secret"
-   export DINGTALK_SPACE_ID="your_space_id"       # 多维表格所在空间ID
-3. 运行：python create_tables.py
+1. 安装依赖：pip install requests python-dotenv
+2. 确认 .env 文件已配置（凭证已预置）
+3. 先获取 Space ID：python create_tables.py --get-space-id
+4. 将 Space ID 填入 .env 中的 DINGTALK_SPACE_ID
+5. 创建表：python create_tables.py
+6. 查看摘要：python create_tables.py --summary
 
 钉钉开放平台文档：https://open.dingtalk.com/document/
 """
@@ -22,11 +22,25 @@ import time
 import requests
 from pathlib import Path
 
+# ========== 加载 .env 配置 ==========
+try:
+    from dotenv import load_dotenv
+    # 优先加载脚本同目录的 .env
+    env_path = Path(__file__).parent / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"[INFO] 已加载配置: {env_path}")
+    else:
+        load_dotenv()  # 从当前工作目录加载
+except ImportError:
+    pass  # 没有 python-dotenv 就用环境变量
+
 # ========== 配置 ==========
 DINGTALK_API_BASE = "https://api.dingtalk.com"
 APP_KEY = os.environ.get("DINGTALK_APP_KEY", "")
 APP_SECRET = os.environ.get("DINGTALK_APP_SECRET", "")
 SPACE_ID = os.environ.get("DINGTALK_SPACE_ID", "")
+AGENT_ID = os.environ.get("DINGTALK_AGENT_ID", "")
 
 # ========== 字段类型映射（钉钉多维表格 API 字段类型） ==========
 FIELD_TYPE_MAP = {
@@ -36,7 +50,7 @@ FIELD_TYPE_MAP = {
     "single_select": "SingleSelect",
     "multi_select": "MultiSelect",
     "date": "DateTime",
-    "member": "Text",                # 成员字段在API中用文本模拟，实际需在UI中配置
+    "member": "Text",                # 成员字段在API中用文本模拟，建表后在UI中改为"成员"类型
     "attachment": "Attachment",
     "auto_number": "AutoNumber",
     "formula": "Text",               # 公式字段需在UI中手动配置
@@ -309,6 +323,7 @@ class DingTalkClient:
         data = resp.json()
         self.access_token = data["accessToken"]
         self.token_expires = time.time() + data.get("expireIn", 7200) - 60
+        print(f"[OK] 获取 access_token 成功 (有效期 {data.get('expireIn', 7200)}s)")
         return self.access_token
 
     def _headers(self) -> dict:
@@ -317,24 +332,52 @@ class DingTalkClient:
             "Content-Type": "application/json",
         }
 
-    def create_sheet(self, space_id: str, name: str) -> dict:
-        """在多维表格空间中创建工作表"""
-        url = f"{DINGTALK_API_BASE}/v1.0/doc/spaces/{space_id}/sheets"
+    def get_spaces(self) -> list:
+        """获取多维表格空间列表"""
+        url = f"{DINGTALK_API_BASE}/v1.0/doc/spaces"
+        resp = requests.get(url, headers=self._headers(), params={"maxResults": 50})
+        resp.raise_for_status()
+        return resp.json()
+
+    def create_datasheet(self, space_id: str, name: str) -> dict:
+        """在空间中创建多维表格文档"""
+        url = f"{DINGTALK_API_BASE}/v1.0/doc/spaces/{space_id}/docs"
+        resp = requests.post(url, headers=self._headers(), json={
+            "name": name,
+            "docType": "asheet",  # asheet = 多维表格
+        })
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_sheets(self, workbook_id: str) -> list:
+        """获取多维表格的所有工作表"""
+        url = f"{DINGTALK_API_BASE}/v1.0/doc/workbooks/{workbook_id}/sheets"
+        resp = requests.get(url, headers=self._headers())
+        resp.raise_for_status()
+        return resp.json()
+
+    def create_sheet(self, workbook_id: str, name: str) -> dict:
+        """在多维表格中创建工作表（数据表）"""
+        url = f"{DINGTALK_API_BASE}/v1.0/doc/workbooks/{workbook_id}/sheets"
         resp = requests.post(url, headers=self._headers(), json={"name": name})
         resp.raise_for_status()
         return resp.json()
 
-    def add_field(self, space_id: str, sheet_id: str, field_def: dict) -> dict:
+    def add_field(self, workbook_id: str, sheet_id: str, field_def: dict) -> dict:
         """向工作表添加字段"""
-        url = f"{DINGTALK_API_BASE}/v1.0/doc/spaces/{space_id}/sheets/{sheet_id}/fields"
+        url = f"{DINGTALK_API_BASE}/v1.0/doc/workbooks/{workbook_id}/sheets/{sheet_id}/fields"
         resp = requests.post(url, headers=self._headers(), json=field_def)
+        if resp.status_code != 200:
+            print(f"    [WARN] API返回 {resp.status_code}: {resp.text[:200]}")
         resp.raise_for_status()
         return resp.json()
 
-    def add_record(self, space_id: str, sheet_id: str, record: dict) -> dict:
+    def add_record(self, workbook_id: str, sheet_id: str, record: dict) -> dict:
         """向工作表添加记录"""
-        url = f"{DINGTALK_API_BASE}/v1.0/doc/spaces/{space_id}/sheets/{sheet_id}/records"
+        url = f"{DINGTALK_API_BASE}/v1.0/doc/workbooks/{workbook_id}/sheets/{sheet_id}/records"
         resp = requests.post(url, headers=self._headers(), json={"fields": record})
+        if resp.status_code != 200:
+            print(f"    [WARN] 插入记录API返回 {resp.status_code}: {resp.text[:200]}")
         resp.raise_for_status()
         return resp.json()
 
@@ -358,44 +401,96 @@ def build_field_payload(field: dict) -> dict:
 
 def create_all_tables(client: DingTalkClient, space_id: str):
     """创建所有4张表"""
+    results = {}
+
     for table_def in ALL_TABLES:
         table_name = table_def["table_name"]
         table_id = table_def["table_id"]
         print(f"\n{'='*60}")
-        print(f"创建表: {table_name} ({table_id})")
+        print(f"  创建表: {table_name} ({table_id})")
         print(f"{'='*60}")
 
-        # 1. 创建工作表
+        # 1. 创建多维表格文档
         try:
-            sheet = client.create_sheet(space_id, table_name)
-            sheet_id = sheet.get("sheetId", "unknown")
-            print(f"  [OK] 工作表已创建, sheetId={sheet_id}")
+            doc = client.create_datasheet(space_id, table_name)
+            workbook_id = doc.get("docId") or doc.get("nodeId") or doc.get("id")
+            print(f"  [OK] 多维表格文档已创建, ID={workbook_id}")
+            print(f"       响应: {json.dumps(doc, ensure_ascii=False)[:200]}")
+        except requests.exceptions.HTTPError as e:
+            print(f"  [ERROR] 创建文档失败: {e}")
+            print(f"          响应: {e.response.text[:300] if e.response else 'N/A'}")
+            # 尝试替代方法：直接在已有空间创建sheet
+            print(f"  [RETRY] 尝试直接创建工作表...")
+            try:
+                sheet = client.create_sheet(space_id, table_name)
+                workbook_id = space_id
+                sheet_id = sheet.get("sheetId") or sheet.get("id")
+                print(f"  [OK] 工作表已创建, sheetId={sheet_id}")
+            except Exception as e2:
+                print(f"  [ERROR] 创建工作表也失败: {e2}")
+                continue
         except Exception as e:
-            print(f"  [ERROR] 创建工作表失败: {e}")
+            print(f"  [ERROR] 创建文档失败: {e}")
             continue
 
-        # 2. 添加通用字段
+        # 2. 获取默认sheet或创建新sheet
+        try:
+            sheets_resp = client.get_sheets(workbook_id)
+            sheets = sheets_resp.get("sheets") or sheets_resp.get("value") or []
+            if sheets:
+                sheet_id = sheets[0].get("sheetId") or sheets[0].get("id")
+                print(f"  [OK] 使用默认工作表, sheetId={sheet_id}")
+            else:
+                sheet = client.create_sheet(workbook_id, "数据")
+                sheet_id = sheet.get("sheetId") or sheet.get("id")
+                print(f"  [OK] 创建工作表, sheetId={sheet_id}")
+        except Exception as e:
+            print(f"  [WARN] 获取/创建工作表失败: {e}, 尝试继续...")
+            sheet_id = "Sheet1"
+
+        # 3. 添加字段（通用 + 业务）
         all_fields = COMMON_FIELDS + table_def["fields"]
+        success_count = 0
         for i, field in enumerate(all_fields, 1):
             try:
                 payload = build_field_payload(field)
-                client.add_field(space_id, sheet_id, payload)
+                client.add_field(workbook_id, sheet_id, payload)
                 required_mark = " *" if field.get("required") else ""
                 print(f"  [{i:02d}] {field['name']} ({field['type']}){required_mark}")
+                success_count += 1
+                time.sleep(0.1)  # 避免API限频
             except Exception as e:
                 print(f"  [{i:02d}] {field['name']} - ERROR: {e}")
 
-        # 3. 插入测试数据
+        # 4. 插入测试数据
         test_row = TEST_DATA.get(table_id, {})
         if test_row:
             try:
-                client.add_record(space_id, sheet_id, test_row)
+                client.add_record(workbook_id, sheet_id, test_row)
                 print(f"  [OK] 测试数据已插入")
             except Exception as e:
                 print(f"  [WARN] 插入测试数据失败: {e}")
 
-        field_count = len(COMMON_FIELDS) + len(table_def["fields"])
-        print(f"  总字段数: {field_count}")
+        field_count = len(all_fields)
+        print(f"  总字段数: {field_count} (成功: {success_count})")
+        results[table_id] = {
+            "name": table_name,
+            "workbook_id": workbook_id,
+            "sheet_id": sheet_id,
+            "fields_total": field_count,
+            "fields_success": success_count,
+        }
+
+    # 打印结果汇总
+    print(f"\n{'='*60}")
+    print("  建表结果汇总")
+    print(f"{'='*60}")
+    for tid, info in results.items():
+        status = "OK" if info["fields_success"] == info["fields_total"] else "PARTIAL"
+        print(f"  [{status}] {info['name']}: {info['fields_success']}/{info['fields_total']}字段")
+        print(f"         workbook_id={info['workbook_id']}, sheet_id={info['sheet_id']}")
+
+    return results
 
 
 def print_summary():
@@ -444,6 +539,45 @@ def print_summary():
               f"{total}个字段 (5通用+{biz}业务)")
 
 
+def get_space_id(client: DingTalkClient):
+    """获取空间列表，帮助用户找到 Space ID"""
+    print("\n查询钉钉文档空间列表...")
+    try:
+        result = client.get_spaces()
+        spaces = result.get("spaces") or result.get("value") or []
+        if not spaces:
+            print("  未找到空间。请确认：")
+            print("  1. 应用已获得文档相关权限")
+            print("  2. 企业内已有钉钉文档空间")
+            print(f"\n  API原始返回: {json.dumps(result, ensure_ascii=False)[:500]}")
+            return
+
+        print(f"\n  找到 {len(spaces)} 个空间:")
+        print(f"  {'─'*50}")
+        for s in spaces:
+            sid = s.get("spaceId") or s.get("id")
+            name = s.get("spaceName") or s.get("name") or "未命名"
+            stype = s.get("spaceType") or s.get("type") or "unknown"
+            print(f"  Space ID: {sid}")
+            print(f"    名称: {name}")
+            print(f"    类型: {stype}")
+            print(f"  {'─'*50}")
+
+        print(f"\n  请将需要的 Space ID 添加到 .env 文件:")
+        print(f"  DINGTALK_SPACE_ID=<上面的Space ID>")
+
+    except requests.exceptions.HTTPError as e:
+        print(f"  [ERROR] API调用失败: {e}")
+        if e.response:
+            print(f"  响应: {e.response.text[:500]}")
+        print("\n  可能原因：")
+        print("  1. AppKey/AppSecret 不正确")
+        print("  2. 应用未开通「文档」相关权限")
+        print("  3. 需要在钉钉开放平台给应用添加「多维表格」权限")
+    except Exception as e:
+        print(f"  [ERROR] 请求失败: {e}")
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="钉钉多维表格批量创建工具")
@@ -451,6 +585,10 @@ def main():
                         help="仅打印表结构摘要（不调用API）")
     parser.add_argument("--export-json", type=str,
                         help="导出完整表结构到JSON文件")
+    parser.add_argument("--get-space-id", action="store_true",
+                        help="查询钉钉空间列表，获取Space ID")
+    parser.add_argument("--test-auth", action="store_true",
+                        help="仅测试API认证是否成功")
     args = parser.parse_args()
 
     if args.summary:
@@ -472,20 +610,45 @@ def main():
         print(f"已导出到 {args.export_json}")
         return
 
-    # API 模式 - 需要配置钉钉凭证
+    # 以下命令需要 API 凭证
     if not APP_KEY or not APP_SECRET:
-        print("错误: 请设置环境变量 DINGTALK_APP_KEY 和 DINGTALK_APP_SECRET")
-        print("  export DINGTALK_APP_KEY='your_app_key'")
-        print("  export DINGTALK_APP_SECRET='your_app_secret'")
-        print("  export DINGTALK_SPACE_ID='your_space_id'")
+        print("错误: 未配置钉钉凭证")
+        print(f"  请检查 .env 文件: {Path(__file__).parent / '.env'}")
+        print(f"  当前 APP_KEY: {'已配置' if APP_KEY else '未配置'}")
+        print(f"  当前 APP_SECRET: {'已配置' if APP_SECRET else '未配置'}")
         print("\n提示: 使用 --summary 查看表结构摘要，无需API凭证")
         sys.exit(1)
 
+    client = DingTalkClient(APP_KEY, APP_SECRET)
+
+    if args.test_auth:
+        print("测试钉钉API认证...")
+        print(f"  APP_KEY: {APP_KEY[:8]}...{APP_KEY[-4:]}")
+        print(f"  AGENT_ID: {AGENT_ID}")
+        try:
+            token = client.get_access_token()
+            print(f"  [OK] 认证成功! token={token[:20]}...")
+        except Exception as e:
+            print(f"  [FAIL] 认证失败: {e}")
+        return
+
+    if args.get_space_id:
+        get_space_id(client)
+        return
+
+    # 默认模式：创建所有表
     if not SPACE_ID:
-        print("错误: 请设置环境变量 DINGTALK_SPACE_ID")
+        print("错误: 未配置 DINGTALK_SPACE_ID")
+        print("  请先运行: python create_tables.py --get-space-id")
+        print("  然后将 Space ID 添加到 .env 文件")
         sys.exit(1)
 
-    client = DingTalkClient(APP_KEY, APP_SECRET)
+    print(f"配置信息:")
+    print(f"  APP_KEY:  {APP_KEY[:8]}...{APP_KEY[-4:]}")
+    print(f"  SPACE_ID: {SPACE_ID}")
+    print(f"  AGENT_ID: {AGENT_ID}")
+    print(f"\n准备创建 {len(ALL_TABLES)} 张多维表格...")
+
     create_all_tables(client, SPACE_ID)
     print_summary()
     print("\n全部完成!")
