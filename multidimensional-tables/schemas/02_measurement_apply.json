@@ -1,0 +1,99 @@
+{
+  "table_name": "量体申请",
+  "table_id": "measurement_apply",
+  "description": "销售需要量体时填写，S06量体启动",
+  "who": "销售",
+  "when": "需要量体时",
+  "purpose": "S06量体启动",
+  "include_common_fields": true,
+  "fields": [
+    {
+      "seq": 1,
+      "name": "关联合同编号",
+      "type": "text",
+      "required": true,
+      "description": "与交接表的合同编号一致"
+    },
+    {
+      "seq": 2,
+      "name": "量体类型",
+      "type": "single_select",
+      "required": true,
+      "options": ["首次量体", "补量", "售后量体"]
+    },
+    {
+      "seq": 3,
+      "name": "量体人数",
+      "type": "number",
+      "required": true,
+      "validation": ">=1"
+    },
+    {
+      "seq": 4,
+      "name": "量体日期",
+      "type": "date",
+      "required": true,
+      "validation": ">=今天"
+    },
+    {
+      "seq": 5,
+      "name": "量体时间段",
+      "type": "single_select",
+      "required": true,
+      "options": ["上午(9-12)", "下午(13-17)", "全天"]
+    },
+    {
+      "seq": 6,
+      "name": "量体地址",
+      "type": "text",
+      "required": true,
+      "description": "详细地址"
+    },
+    {
+      "seq": 7,
+      "name": "现场联系人",
+      "type": "text",
+      "required": true,
+      "description": "客户方对接人"
+    },
+    {
+      "seq": 8,
+      "name": "联系电话",
+      "type": "text",
+      "required": true
+    },
+    {
+      "seq": 9,
+      "name": "量体品类",
+      "type": "multi_select",
+      "required": true,
+      "options": ["西服上衣", "西裤", "衬衫", "大衣", "马甲", "连衣裙", "制式衬衫", "其他"]
+    },
+    {
+      "seq": 10,
+      "name": "是否需要样衣展示",
+      "type": "single_select",
+      "required": true,
+      "options": ["是", "否"]
+    },
+    {
+      "seq": 11,
+      "name": "特殊注意事项",
+      "type": "multi_line_text",
+      "required": false,
+      "description": "如\"客户只有午休可量\"\"需带面料样本\""
+    },
+    {
+      "seq": 12,
+      "name": "申请销售",
+      "type": "member",
+      "required": true
+    }
+  ],
+  "validation_rules": [
+    "量体日<交货日",
+    "人数与交接表一致",
+    "体型数据异常检测"
+  ],
+  "total_fields": 17
+}

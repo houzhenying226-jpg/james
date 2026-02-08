@@ -1,0 +1,100 @@
+{
+  "table_name": "签收单",
+  "table_id": "delivery_receipt",
+  "description": "商务在客户收货时填写，S10/S11签收确认，触发付款节点",
+  "who": "商务",
+  "when": "客户收货时",
+  "purpose": "S10/S11签收确认，触发付款节点",
+  "include_common_fields": true,
+  "fields": [
+    {
+      "seq": 1,
+      "name": "关联合同编号",
+      "type": "text",
+      "required": true
+    },
+    {
+      "seq": 2,
+      "name": "发货批次号",
+      "type": "text",
+      "required": true,
+      "description": "如 SHIP-2026-001-01"
+    },
+    {
+      "seq": 3,
+      "name": "签收日期",
+      "type": "date",
+      "required": true
+    },
+    {
+      "seq": 4,
+      "name": "签收人姓名",
+      "type": "text",
+      "required": true,
+      "description": "客户方签收人"
+    },
+    {
+      "seq": 5,
+      "name": "签收人电话",
+      "type": "text",
+      "required": true
+    },
+    {
+      "seq": 6,
+      "name": "品类名称",
+      "type": "text",
+      "required": true,
+      "description": "与制作明细对应"
+    },
+    {
+      "seq": 7,
+      "name": "应发数量",
+      "type": "number",
+      "required": true
+    },
+    {
+      "seq": 8,
+      "name": "实收数量",
+      "type": "number",
+      "required": true
+    },
+    {
+      "seq": 9,
+      "name": "签收状态",
+      "type": "single_select",
+      "required": true,
+      "options": ["全部签收", "部分签收", "拒收"]
+    },
+    {
+      "seq": 10,
+      "name": "差异说明",
+      "type": "multi_line_text",
+      "required": false,
+      "description": "部分签收/拒收时必填"
+    },
+    {
+      "seq": 11,
+      "name": "签收照片",
+      "type": "attachment",
+      "required": false,
+      "description": "拍照上传"
+    },
+    {
+      "seq": 12,
+      "name": "经办商务",
+      "type": "member",
+      "required": true
+    },
+    {
+      "seq": 13,
+      "name": "备注",
+      "type": "multi_line_text",
+      "required": false
+    }
+  ],
+  "validation_rules": [
+    "实收数量<=应发数量",
+    "签收品类在订单范围内"
+  ],
+  "total_fields": 18
+}

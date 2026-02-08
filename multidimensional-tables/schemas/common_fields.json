@@ -1,0 +1,37 @@
+{
+  "description": "通用字段 - 每张表最前面都要加的5个字段",
+  "fields": [
+    {
+      "name": "项目编号",
+      "type": "text",
+      "required": true,
+      "description": "格式：PRJ-2026-001（手动填）"
+    },
+    {
+      "name": "提交人",
+      "type": "member",
+      "required": true,
+      "description": "选钉钉通讯录"
+    },
+    {
+      "name": "提交日期",
+      "type": "date",
+      "required": true,
+      "description": "默认今天"
+    },
+    {
+      "name": "审核状态",
+      "type": "single_select",
+      "required": false,
+      "options": ["⏳待审核", "✅已通过", "❌已驳回"],
+      "default": "⏳待审核",
+      "description": "默认⏳待审核，销售不改，系统回写"
+    },
+    {
+      "name": "审核意见",
+      "type": "multi_line_text",
+      "required": false,
+      "description": "系统回写驳回原因，销售不填"
+    }
+  ]
+}

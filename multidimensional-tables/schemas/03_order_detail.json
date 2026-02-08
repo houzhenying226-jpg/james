@@ -1,0 +1,127 @@
+{
+  "table_name": "制作明细表",
+  "table_id": "order_detail",
+  "description": "销售/商务下单时填写，S07下单确认。每行=一个品类批次",
+  "who": "销售/商务",
+  "when": "下单时",
+  "purpose": "S07下单确认",
+  "include_common_fields": true,
+  "fields": [
+    {
+      "seq": 1,
+      "name": "关联合同编号",
+      "type": "text",
+      "required": true
+    },
+    {
+      "seq": 2,
+      "name": "序号",
+      "type": "auto_number",
+      "required": false,
+      "description": "系统自动"
+    },
+    {
+      "seq": 3,
+      "name": "存货名称",
+      "type": "single_select",
+      "required": true,
+      "options": [
+        "男西服上衣", "男西裤", "男衬衫长袖", "男衬衫短袖", "男大衣",
+        "男马甲", "男T恤", "男夹克",
+        "女西服上衣", "女西裤", "女衬衫长袖", "女衬衫短袖", "女大衣",
+        "女马甲", "女连衣裙", "女半裙",
+        "领带", "丝巾", "皮带"
+      ],
+      "description": "U8对照表常用选项"
+    },
+    {
+      "seq": 4,
+      "name": "面料品牌",
+      "type": "single_select",
+      "required": true,
+      "options": ["如意", "阳光", "海澜", "南山", "华芳", "其他"]
+    },
+    {
+      "seq": 5,
+      "name": "面料编号",
+      "type": "text",
+      "required": true,
+      "description": "供应商面料编号"
+    },
+    {
+      "seq": 6,
+      "name": "面料颜色",
+      "type": "text",
+      "required": true,
+      "description": "如\"藏青色\"\"深灰色\""
+    },
+    {
+      "seq": 7,
+      "name": "款式说明",
+      "type": "multi_line_text",
+      "required": true,
+      "description": "如\"两粒扣平驳领、双开衩\""
+    },
+    {
+      "seq": 8,
+      "name": "数量(件)",
+      "type": "number",
+      "required": true,
+      "validation": ">0"
+    },
+    {
+      "seq": 9,
+      "name": "单价(元)",
+      "type": "number",
+      "required": true,
+      "validation": ">0"
+    },
+    {
+      "seq": 10,
+      "name": "小计金额(元)",
+      "type": "formula",
+      "required": false,
+      "formula": "数量(件) * 单价(元)",
+      "description": "=数量×单价（自动计算）"
+    },
+    {
+      "seq": 11,
+      "name": "生产商家",
+      "type": "single_select",
+      "required": true,
+      "options": ["希努尔", "大杨", "报喜鸟", "顺美", "自有工厂", "其他"]
+    },
+    {
+      "seq": 12,
+      "name": "要求交货日",
+      "type": "date",
+      "required": true
+    },
+    {
+      "seq": 13,
+      "name": "尺码范围",
+      "type": "multi_line_text",
+      "required": true,
+      "description": "如\"165A-185B，具体见量体数据\""
+    },
+    {
+      "seq": 14,
+      "name": "工艺要求",
+      "type": "multi_line_text",
+      "required": false,
+      "description": "如\"绣花logo左胸口\"\"特殊纽扣\""
+    },
+    {
+      "seq": 15,
+      "name": "备注",
+      "type": "multi_line_text",
+      "required": false
+    }
+  ],
+  "validation_rules": [
+    "R24人数/金额与交接表一致",
+    "品类+面料+颜色不重复",
+    "AI面料匹配行业"
+  ],
+  "total_fields": 20
+}

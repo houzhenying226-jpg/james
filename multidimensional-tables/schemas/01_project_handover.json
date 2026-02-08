@@ -1,0 +1,134 @@
+{
+  "table_name": "成交项目交接表",
+  "table_id": "project_handover",
+  "description": "销售签完合同后填写，S05签约确认，系统正式接管",
+  "who": "销售",
+  "when": "签完合同后",
+  "purpose": "S05签约确认，系统正式接管",
+  "include_common_fields": true,
+  "fields": [
+    {
+      "seq": 1,
+      "name": "客户名称",
+      "type": "text",
+      "required": true,
+      "description": ""
+    },
+    {
+      "seq": 2,
+      "name": "客户行业",
+      "type": "single_select",
+      "required": true,
+      "options": [
+        "电力能源", "石油化工", "金融保险", "交通运输", "通信科技",
+        "军工国防", "政府机关", "教育医疗", "建筑地产", "其他"
+      ]
+    },
+    {
+      "seq": 3,
+      "name": "合同编号",
+      "type": "text",
+      "required": true,
+      "description": "格式示例：OP26-152"
+    },
+    {
+      "seq": 4,
+      "name": "合同金额(万元)",
+      "type": "number",
+      "required": true,
+      "validation": ">0"
+    },
+    {
+      "seq": 5,
+      "name": "付款方式",
+      "type": "single_select",
+      "required": true,
+      "options": ["全额预付", "3-7分期", "4-3-3分期", "5-5分期", "货到付款", "其他"]
+    },
+    {
+      "seq": 6,
+      "name": "结算模式",
+      "type": "single_select",
+      "required": true,
+      "options": ["直签模式", "希努尔代签模式"]
+    },
+    {
+      "seq": 7,
+      "name": "总人数",
+      "type": "number",
+      "required": true,
+      "validation": ">=1"
+    },
+    {
+      "seq": 8,
+      "name": "品类概要",
+      "type": "multi_line_text",
+      "required": true,
+      "description": "如\"西服套装200套+衬衫200件+大衣50件\""
+    },
+    {
+      "seq": 9,
+      "name": "签约日期",
+      "type": "date",
+      "required": true
+    },
+    {
+      "seq": 10,
+      "name": "要求交货日",
+      "type": "date",
+      "required": true,
+      "validation": "必须晚于签约日期"
+    },
+    {
+      "seq": 11,
+      "name": "客户联系人",
+      "type": "text",
+      "required": true,
+      "description": "姓名+职务"
+    },
+    {
+      "seq": 12,
+      "name": "联系电话",
+      "type": "text",
+      "required": true
+    },
+    {
+      "seq": 13,
+      "name": "收货地址",
+      "type": "text",
+      "required": true
+    },
+    {
+      "seq": 14,
+      "name": "特殊要求",
+      "type": "multi_line_text",
+      "required": false,
+      "description": "如\"需防静电面料\"\"需绣logo\""
+    },
+    {
+      "seq": 15,
+      "name": "项目负责销售",
+      "type": "member",
+      "required": true,
+      "description": "选钉钉通讯录"
+    },
+    {
+      "seq": 16,
+      "name": "协作产品经理",
+      "type": "member",
+      "required": false
+    },
+    {
+      "seq": 17,
+      "name": "备注",
+      "type": "multi_line_text",
+      "required": false
+    }
+  ],
+  "validation_rules": [
+    "R02的15要素齐全",
+    "交货日>签约日",
+    "金额vs人数合理性"
+  ],
+  "total_fields": 22
+}
